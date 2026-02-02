@@ -1,40 +1,31 @@
 quarkus:
-  # Настройки базы данных SQLite
   datasource:
     db-kind: other
     jdbc:
       driver: org.sqlite.JDBC
       url: jdbc:sqlite:sync_family.db
-      # Для SQLite пулы соединений лучше ограничить, так как БД в одном файле
       max-size: 5
       min-size: 1
 
-  # Настройка миграций (Flyway)
   flyway:
     migrate-at-start: true
     locations: db/migration
 
-  # Настройка jOOQ
   jooq:
     dialect: sqlite
 
-  # Настройка логирования (Middle+ уровень)
   log:
     level: INFO
     category:
       "ru.syncfamily":
-        level: DEBUG # Чтобы видеть свои логи парсинга
+        level: DEBUG
       "org.jooq":
         level: WARN
 
-# Твои кастомные настройки бота
 sync-family:
   bot:
-    # Токен лучше передавать через переменную окружения BOT_TOKEN
-    # Если её нет, будет использоваться значение после двойного пайпа
     token: ${BOT_TOKEN:YOUR_DEFAULT_TOKEN_HERE}
     name: sync_family_bot
 
-  # Настройки парсинга (можем вынести сюда разделители)
   parser:
     delimiters: ",|\n|;"

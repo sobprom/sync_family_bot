@@ -24,7 +24,8 @@ public class SyncFamilyBot implements LongPollingSingleThreadUpdateConsumer {
     ProductRepository productRepository;
     @Inject
     TelegramUiService uiService;
-    private TelegramClient telegramClient; // Инжектится автоматически расширением quarkus-telegram-bot
+
+    private TelegramClient telegramClient;
 
     @Override
     public void consume(Update update) {
