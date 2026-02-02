@@ -9,6 +9,11 @@
     <version>1.0.0-SNAPSHOT</version>
 
     <properties>
+        <maven.compiler.source>17</maven.compiler.source>
+        <maven.compiler.target>17</maven.compiler.target>
+        <maven.compiler.release>17</maven.compiler.release>
+
+        <quarkus.platform.version>3.6.4</quarkus.platform.version>
         <quarkus.platform.version>3.6.4</quarkus.platform.version>
         <quarkus.platform.group-id>io.quarkus.platform</quarkus.platform.group-id>
         <quarkus.platform.artifact-id>quarkus-bom</quarkus.platform.artifact-id>
@@ -16,8 +21,10 @@
         <jooq.version>3.18.7</jooq.version>
         <sqlite-jdbc.version>3.44.1.0</sqlite-jdbc.version>
 
-        <maven.compiler.release>21</maven.compiler.release>
+        <maven.compiler.release>17</maven.compiler.release>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <jooq.codegen.configurationFile>jooq-config.xml</jooq.codegen.configurationFile>
+
     </properties>
 
     <dependencyManagement>
@@ -97,6 +104,11 @@
             <groupId>io.quarkus</groupId>
             <artifactId>quarkus-config-yaml</artifactId>
         </dependency>
+
+        <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-mutiny</artifactId>
+        </dependency>
     </dependencies>
 
     <build>
@@ -128,22 +140,7 @@
                             <goal>generate</goal>
                         </goals>
                         <configuration>
-                            <jdbc>
-                                <driver>org.sqlite.JDBC</driver>
-                                <!-- Используем абсолютный путь, чтобы плагин точно нашел файл -->
-                                <url>jdbc:sqlite:${project.basedir}/sync_family.db</url>
-                            </jdbc>
-                            <generator>
-                                <database>
-                                    <name>org.jooq.meta.sqlite.SQLiteDatabase</name>
-                                    <includes>.*</includes>
-                                    <inputSchema>main</inputSchema>
-                                </database>
-                                <target>
-                                    <packageName>ru.syncfamily.jooq</packageName>
-                                    <directory>target/generated-sources/jooq</directory>
-                                </target>
-                            </generator>
+                            <configurationFile>jooq-config.xml</configurationFile>
                         </configuration>
                     </execution>
                 </executions>
