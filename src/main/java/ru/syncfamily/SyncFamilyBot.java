@@ -2,6 +2,7 @@ package ru.syncfamily;
 
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import lombok.RequiredArgsConstructor;
 import org.telegram.telegrambots.longpolling.util.LongPollingSingleThreadUpdateConsumer;
 import org.telegram.telegrambots.meta.api.methods.AnswerCallbackQuery;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
@@ -16,6 +17,7 @@ import ru.syncfamily.service.TelegramUiService;
 import java.util.List;
 
 @ApplicationScoped
+@RequiredArgsConstructor
 public class SyncFamilyBot implements LongPollingSingleThreadUpdateConsumer {
 
     @Inject
@@ -25,7 +27,7 @@ public class SyncFamilyBot implements LongPollingSingleThreadUpdateConsumer {
     @Inject
     TelegramUiService uiService;
 
-    private TelegramClient telegramClient;
+    private final TelegramClient telegramClient;
 
     @Override
     public void consume(Update update) {
