@@ -8,6 +8,7 @@
         <database>
             <name>org.jooq.meta.sqlite.SQLiteDatabase</name>
             <includes>.*</includes>
+            <excludes>flyway_schema_history</excludes>
         </database>
         <target>
             <packageName>ru.syncfamily.jooq</packageName>
