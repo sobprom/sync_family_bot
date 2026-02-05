@@ -12,6 +12,7 @@
         <maven.compiler.source>17</maven.compiler.source>
         <maven.compiler.target>17</maven.compiler.target>
         <maven.compiler.release>17</maven.compiler.release>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
         <quarkus.platform.version>3.6.4</quarkus.platform.version>
         <quarkus.platform.version>3.6.4</quarkus.platform.version>
@@ -37,6 +38,16 @@
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
+            <dependency>
+                <groupId>com.squareup.okhttp3</groupId>
+                <artifactId>okhttp</artifactId>
+                <version>4.12.0</version>
+            </dependency>
+            <dependency>
+                <groupId>com.squareup.okio</groupId>
+                <artifactId>okio-jvm</artifactId>
+                <version>3.6.0</version>
+            </dependency>
         </dependencies>
     </dependencyManagement>
 
@@ -45,6 +56,12 @@
         <dependency>
             <groupId>io.quarkus</groupId>
             <artifactId>quarkus-arc</artifactId>
+        </dependency>
+
+        <!-- Переносим okio сюда, чтобы он перекрыл транзитивные старые версии -->
+        <dependency>
+            <groupId>com.squareup.okio</groupId>
+            <artifactId>okio-jvm</artifactId>
         </dependency>
 
         <!-- Database Engine -->
@@ -71,15 +88,17 @@
             <version>2.0.0</version>
         </dependency>
 
+        <!-- Telegram -->
         <dependency>
             <groupId>org.telegram</groupId>
             <artifactId>telegrambots-longpolling</artifactId>
-            <version>7.0.0</version>
+            <version>9.2.1</version>
+            <scope>compile</scope>
         </dependency>
         <dependency>
             <groupId>org.telegram</groupId>
             <artifactId>telegrambots-client</artifactId>
-            <version>7.0.0</version>
+            <version>9.2.1</version>
         </dependency>
 
         <dependency>
