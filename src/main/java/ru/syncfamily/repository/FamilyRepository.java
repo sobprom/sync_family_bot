@@ -6,6 +6,7 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import org.jooq.DSLContext;
 
+import java.util.List;
 import java.util.UUID;
 
 import static ru.syncfamily.jooq.Tables.FAMILIES;
@@ -40,6 +41,17 @@ public class FamilyRepository {
                 return code;
             });
         }).runSubscriptionOn(Infrastructure.getDefaultWorkerPool());
+    }
+
+    public Uni<List<Long>> getFamilyMembersByChatId(long chatId) {
+        return Uni.createFrom().item(() ->
+                dsl.select(USERS.CHAT_ID)
+                        .from(USERS)
+                        .where(USERS.FAMILY_ID.eq(
+                                dsl.select(USERS.FAMILY_ID).from(USERS).where(USERS.CHAT_ID.eq((int) chatId))
+                        ))
+                        .fetchInto(Long.class)
+        ).runSubscriptionOn(Infrastructure.getDefaultWorkerPool());
     }
 
 

@@ -7,7 +7,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.telegram.telegrambots.longpolling.util.LongPollingSingleThreadUpdateConsumer;
 import org.telegram.telegrambots.meta.api.methods.AnswerCallbackQuery;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
-import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageReplyMarkup;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
@@ -18,10 +17,12 @@ import ru.syncfamily.repository.FamilyRepository;
 import ru.syncfamily.repository.ProductRepository;
 import ru.syncfamily.service.ListParser;
 import ru.syncfamily.service.TelegramUiService;
+import ru.syncfamily.service.model.Product;
 
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.Map;
 
 @Slf4j
 @ApplicationScoped
@@ -118,27 +119,42 @@ public class SyncFamilyBot implements LongPollingSingleThreadUpdateConsumer {
      * Логика получения нового списка (сообщения от жены/мужа)
      */
     private void handleTextMessage(Update update) {
-        long chatId = update.getMessage().getChatId();
+        long senderChatId = update.getMessage().getChatId();
         String text = update.getMessage().getText();
 
-        // 1. Парсим текст в список строк
         List<String> items = listParser.parse(text);
 
-        // 2. Сохраняем (репозиторий сам определит family_id) и выводим кнопки
-        productRepository.addProducts(chatId, items)
-                .chain(() -> productRepository.getActiveProducts(chatId))
-                .subscribe().with(products -> {
-                    SendMessage message = SendMessage.builder()
-                            .chatId(chatId)
-                            .text("🛒 Список покупок обновлен:")
-                            .replyMarkup(uiService.createShoppingListKeyboard(products))
-                            .build();
-                    send(message);
+        // 1. Добавляем товары
+        productRepository.addProducts(senderChatId, items)
+                .chain(() -> {
+                    // 2. Получаем список всех chatId членов этой семьи
+                    // Вам нужно создать такой метод в репозитории
+                    return familyRepository.getFamilyMembersByChatId(senderChatId)
+                            .chain(members -> {
+                                // 3. Получаем актуальный список продуктов
+                                return productRepository.getActiveProducts(senderChatId)
+                                        .map(products -> Map.entry(members, products));
+                            });
+                })
+                .subscribe().with(entry -> {
+                    List<Long> memberIds = entry.getKey();
+                    List<Product> products = entry.getValue();
+
+                    // 4. Рассылаем сообщение каждому члену семьи
+                    for (Long memberId : memberIds) {
+                        SendMessage message = SendMessage.builder()
+                                .chatId(memberId)
+                                .text("🛒 Список покупок обновлен (" + update.getMessage().getFrom().getFirstName() + "):")
+                                .replyMarkup(uiService.createShoppingListKeyboard(products))
+                                .build();
+                        send(message);
+                    }
                 }, failure -> {
-                    log.error("Ошибка сохранения в репозиторий", failure);
-                    send(new SendMessage(String.valueOf(chatId), "⚠️ Ошибка при сохранении списка."));
+                    log.error("Ошибка синхронизации списка", failure);
+                    send(new SendMessage(String.valueOf(senderChatId), "⚠️ Ошибка при обновлении списка."));
                 });
     }
+
 
     /**
      * Логика нажатия на кнопки "Куплено"
@@ -146,30 +162,37 @@ public class SyncFamilyBot implements LongPollingSingleThreadUpdateConsumer {
     private void handleCallbackQuery(Update update) {
         String callbackData = update.getCallbackQuery().getData();
         long chatId = update.getCallbackQuery().getMessage().getChatId();
-        int messageId = update.getCallbackQuery().getMessage().getMessageId();
         String callbackQueryId = update.getCallbackQuery().getId();
 
         if (callbackData.startsWith("buy_")) {
-            String productName = callbackData.replace("buy_", "");
+            int productId = Integer.parseInt(callbackData.replace("buy_", ""));
 
-            // 1. Помечаем в БД как купленное (на уровне семьи)
-            productRepository.markAsBought(chatId, productName)
-                    .chain(() -> productRepository.getActiveProducts(chatId))
-                    .subscribe().with(remainingProducts -> {
-                        try {
-                            // 2. Убираем анимацию загрузки на кнопке
-                            telegramClient.execute(new AnswerCallbackQuery(callbackQueryId));
+            productRepository.markAsBought(chatId, productId)
+                    .chain(() -> familyRepository.getFamilyMembersByChatId(chatId)) // Ищем всех своих
+                    .chain(members -> productRepository.getAllProductsOrdered(chatId) // Получаем список: сначала активные, потом купленные
+                            .map(products -> Map.entry(members, products)))
+                    .subscribe().with(entry -> {
+                        List<Long> memberIds = entry.getKey();
+                        List<Product> products = entry.getValue();
 
-                            // 3. Обновляем существующее сообщение новым списком
-                            EditMessageReplyMarkup edit = EditMessageReplyMarkup.builder()
-                                    .chatId(chatId)
-                                    .messageId(messageId)
-                                    .replyMarkup(uiService.createShoppingListKeyboard(remainingProducts))
+                        String productName = products.stream()
+                                .filter(p -> p.getId().equals(productId))
+                                .map(Product::getProductName)
+                                .findFirst()
+                                .orElse("товара");
+
+                        for (Long memberId : memberIds) {
+                            // Отправляем НОВОЕ сообщение с актуальным списком,
+                            // так как отредактировать чужие сообщения бот не всегда может без хранения message_id
+                            SendMessage sm = SendMessage.builder()
+                                    .chatId(memberId)
+                                    .text("🔄 Список обновлен (куплено: " + productName + ")")
+                                    .replyMarkup(uiService.createShoppingListKeyboard(products))
                                     .build();
-                            telegramClient.execute(edit);
-                        } catch (TelegramApiException e) {
-                            log.error("Ошибка нажатия кнопки куплено", e);
+                            send(sm);
                         }
+                        // Гасим часики на кнопке
+                        answerCallback(callbackQueryId);
                     });
         }
     }
@@ -179,6 +202,16 @@ public class SyncFamilyBot implements LongPollingSingleThreadUpdateConsumer {
             telegramClient.execute(message);
         } catch (TelegramApiException e) {
             log.error("Ошибка отправки сообщения", e);
+        }
+    }
+
+    private void answerCallback(String callbackQueryId) {
+        try {
+            telegramClient.execute(AnswerCallbackQuery.builder()
+                    .callbackQueryId(callbackQueryId)
+                    .build());
+        } catch (TelegramApiException e) {
+            log.error("Ошибка при ответе на CallbackQuery: {}", e.getMessage());
         }
     }
 }
