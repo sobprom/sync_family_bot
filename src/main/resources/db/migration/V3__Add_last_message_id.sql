@@ -1,2 +1,1 @@
-ALTER TABLE users
-    ADD COLUMN last_message_id INTEGER;
+ALTER TABLE users ADD COLUMN last_message_id INTEGER;
