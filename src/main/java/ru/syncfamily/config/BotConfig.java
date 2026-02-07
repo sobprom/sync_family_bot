@@ -4,11 +4,13 @@ import io.quarkus.runtime.StartupEvent;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.event.Observes;
 import jakarta.enterprise.inject.Produces;
+import lombok.extern.slf4j.Slf4j;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.telegram.telegrambots.client.okhttp.OkHttpTelegramClient;
 import org.telegram.telegrambots.longpolling.TelegramBotsLongPollingApplication;
 import org.telegram.telegrambots.meta.generics.TelegramClient;
 
+@Slf4j
 @ApplicationScoped
 public class BotConfig {
 
@@ -23,20 +25,19 @@ public class BotConfig {
     }
 
     void onStart(@Observes StartupEvent ev, ru.syncfamily.SyncFamilyBot syncFamilyBot) {
-        System.out.println("--------------------------------------------------");
-        System.out.println("🤖 ПОПЫТКА ЗАПУСКА БОТА...");
-        System.out.println("TOKEN: " + botToken.substring(0, 4) + "**********");
+        log.info("--------------------------------------------------");
+        log.info("🤖 ПОПЫТКА ЗАПУСКА БОТА...");
+        log.info("TOKEN: {} **********", botToken.substring(0, 4));
 
         try (TelegramBotsLongPollingApplication botsApplication = new TelegramBotsLongPollingApplication()) {
             botsApplication.registerBot(botToken, syncFamilyBot);
-            System.out.println("✅ БОТ УСПЕШНО ЗАРЕГИСТРИРОВАН В TELEGRAM");
-            System.out.println("--------------------------------------------------");
+            log.info("✅ БОТ УСПЕШНО ЗАРЕГИСТРИРОВАН В TELEGRAM");
+            log.info("--------------------------------------------------");
 
             // Чтобы поток не закрылся сразу в некоторых режимах
             Thread.currentThread().join();
         } catch (Exception e) {
-            System.err.println("❌ ОШИБКА ЗАПУСКА: " + e.getMessage());
-            e.printStackTrace();
+            log.error("❌ ОШИБКА ЗАПУСКА:", e);
         }
     }
 }

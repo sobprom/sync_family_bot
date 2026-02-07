@@ -3,11 +3,15 @@ package ru.syncfamily;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.telegram.telegrambots.longpolling.util.LongPollingSingleThreadUpdateConsumer;
 import org.telegram.telegrambots.meta.api.methods.AnswerCallbackQuery;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageReplyMarkup;
 import org.telegram.telegrambots.meta.api.objects.Update;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardRow;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 import org.telegram.telegrambots.meta.generics.TelegramClient;
 import ru.syncfamily.repository.FamilyRepository;
@@ -15,11 +19,16 @@ import ru.syncfamily.repository.ProductRepository;
 import ru.syncfamily.service.ListParser;
 import ru.syncfamily.service.TelegramUiService;
 
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 
+@Slf4j
 @ApplicationScoped
 @RequiredArgsConstructor
 public class SyncFamilyBot implements LongPollingSingleThreadUpdateConsumer {
+
+    public static final String BOT_NAME = "sync_family_bot";
 
     @Inject
     ListParser listParser;
@@ -56,7 +65,14 @@ public class SyncFamilyBot implements LongPollingSingleThreadUpdateConsumer {
     private void handleCommand(Update update) {
         long chatId = update.getMessage().getChatId();
         String text = update.getMessage().getText();
-        if (text.startsWith("/start ")) {
+        if (text.equals("/start")) {
+            send(new SendMessage(String.valueOf(chatId),
+                    """
+                            👋 Привет! Я помогу синхронизировать список покупок в вашей семье.
+                            
+                            🔹 Напиши /create_family, чтобы создать новую группу.
+                            """));
+        } else if (text.startsWith("/start ")) {
             String inviteCode = text.replace("/start ", "").trim();
             familyRepository.joinFamily(chatId, inviteCode)
                     .subscribe().with(success -> {
@@ -66,29 +82,35 @@ public class SyncFamilyBot implements LongPollingSingleThreadUpdateConsumer {
                             send(new SendMessage(String.valueOf(chatId), "❌ Ссылка недействительна или устарела."));
                         }
                     });
-        }
-        else if (text.equals("/start")) {
-            send(new SendMessage(String.valueOf(chatId),
-                    """
-                            👋 Привет! Я помогу синхронизировать список покупок в вашей семье.
-                            
-                            🔹 Напиши /create_family, чтобы создать новую группу.
-                            🔹 Напиши /join [код], чтобы вступить в существующую."""));
         } else if (text.startsWith("/create_family")) {
-            familyRepository.createFamily(chatId)
-                    .subscribe().with(code ->
-                            send(new SendMessage(String.valueOf(chatId),
-                                    "✅ Семья создана!\n\nКод для вступления: `" + code + "`\n\n" +
-                                            "Перешли этот код члену семьи. После вступления ваш список станет общим.")));
-        } else if (text.startsWith("/join ")) {
-            String code = text.replace("/join ", "").trim().toUpperCase();
-            familyRepository.joinFamily(chatId, code)
-                    .subscribe().with(success -> {
-                        String response = success
-                                ? "🤝 Поздравляю! Вы успешно присоединились к семье. Теперь ваши списки синхронизированы."
-                                : "❌ Ошибка: Семья с таким кодом не найдена. Проверь правильность написания.";
-                        send(new SendMessage(String.valueOf(chatId), response));
-                    });
+            familyRepository.createFamilyAndGetCode(chatId).subscribe().with(code -> {
+
+                String inviteLink = "https://t.me/" + BOT_NAME + "?start=" + code;
+
+                String shareUrl = "https://t.me/share/url?url="
+                        + URLEncoder.encode(inviteLink, StandardCharsets.UTF_8)
+                        + "&text=" + URLEncoder.encode("Присоединяйся к моей семье в боте покупок! 🛒", StandardCharsets.UTF_8);
+
+                // 1. Создаем кнопку через Builder
+                InlineKeyboardButton btn = InlineKeyboardButton.builder()
+                        .text("👪 Отправить приглашение")
+                        .url(shareUrl)
+                        .build();
+
+                // 2. Формируем клавиатуру (в 7.x используется InlineKeyboardRow)
+                InlineKeyboardMarkup markup = InlineKeyboardMarkup.builder()
+                        .keyboardRow(new InlineKeyboardRow(btn))
+                        .build();
+
+                // 3. Собираем само сообщение
+                SendMessage sm = SendMessage.builder()
+                        .chatId(chatId) // Можно передавать long напрямую в новых версиях
+                        .text("Семья создана! Нажми кнопку ниже, чтобы отправить ссылку:")
+                        .replyMarkup(markup)
+                        .build();
+
+                send(sm);
+            });
         }
     }
 
@@ -113,7 +135,7 @@ public class SyncFamilyBot implements LongPollingSingleThreadUpdateConsumer {
                             .build();
                     send(message);
                 }, failure -> {
-                    failure.printStackTrace();
+                    log.error("Ошибка сохранения в репозиторий", failure);
                     send(new SendMessage(String.valueOf(chatId), "⚠️ Ошибка при сохранении списка."));
                 });
     }
@@ -146,7 +168,7 @@ public class SyncFamilyBot implements LongPollingSingleThreadUpdateConsumer {
                                     .build();
                             telegramClient.execute(edit);
                         } catch (TelegramApiException e) {
-                            e.printStackTrace();
+                            log.error("Ошибка нажатия кнопки куплено", e);
                         }
                     });
         }
@@ -156,7 +178,7 @@ public class SyncFamilyBot implements LongPollingSingleThreadUpdateConsumer {
         try {
             telegramClient.execute(message);
         } catch (TelegramApiException e) {
-            e.printStackTrace();
+            log.error("Ошибка отправки сообщения", e);
         }
     }
 }
