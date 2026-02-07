@@ -18,7 +18,7 @@ public class FamilyRepository {
     @Inject
     DSLContext dsl;
 
-    public Uni<String> createFamilyAndGetCode(long chatId) {
+    public Uni<String> createFamilyAndGetCode(long chatId, String userName) {
         return Uni.createFrom().item(() -> {
             String code = UUID.randomUUID().toString();
             return dsl.transactionResult(config -> {
@@ -31,13 +31,7 @@ public class FamilyRepository {
                         .getValue(FAMILIES.ID);
 
                 // 2. Привязываем создателя
-                dsl.insertInto(USERS)
-                        .set(USERS.CHAT_ID, (int) chatId)
-                        .set(USERS.FAMILY_ID, familyId)
-                        .onConflict(USERS.CHAT_ID)
-                        .doUpdate()
-                        .set(USERS.FAMILY_ID, familyId)
-                        .execute();
+                upsertUserFamily(chatId, familyId, userName);
                 return code;
             });
         }).runSubscriptionOn(Infrastructure.getDefaultWorkerPool());
@@ -58,7 +52,7 @@ public class FamilyRepository {
     /**
      * Позволяет второму члену семьи вступить в группу по коду
      */
-    public Uni<Boolean> joinFamily(long chatId, String code) {
+    public Uni<Boolean> joinFamily(long chatId, String code, String userName) {
         return Uni.createFrom().item(() -> {
             // 1. Ищем ID семьи по коду
             Integer familyId = dsl.select(FAMILIES.ID)
@@ -69,15 +63,16 @@ public class FamilyRepository {
             if (familyId == null) return false;
 
             // 2. Привязываем пользователя
-            upsertUserFamily(chatId, familyId);
+            upsertUserFamily(chatId, familyId, userName);
             return true;
         }).runSubscriptionOn(Infrastructure.getDefaultWorkerPool());
     }
 
-    private void upsertUserFamily(long chatId, Integer familyId) {
+    private void upsertUserFamily(long chatId, Integer familyId, String userName) {
         dsl.insertInto(USERS)
                 .set(USERS.CHAT_ID, (int) chatId)
                 .set(USERS.FAMILY_ID, familyId)
+                .set(USERS.USERNAME, userName)
                 .onDuplicateKeyUpdate()
                 .set(USERS.FAMILY_ID, familyId)
                 .execute();

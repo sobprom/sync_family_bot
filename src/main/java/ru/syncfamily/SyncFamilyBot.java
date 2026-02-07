@@ -66,6 +66,8 @@ public class SyncFamilyBot implements LongPollingSingleThreadUpdateConsumer {
     private void handleCommand(Update update) {
         long chatId = update.getMessage().getChatId();
         String text = update.getMessage().getText();
+        String userName = update.getMessage().getFrom().getFirstName();
+
         if (text.equals("/start")) {
             send(new SendMessage(String.valueOf(chatId),
                     """
@@ -75,7 +77,7 @@ public class SyncFamilyBot implements LongPollingSingleThreadUpdateConsumer {
                             """));
         } else if (text.startsWith("/start ")) {
             String inviteCode = text.replace("/start ", "").trim();
-            familyRepository.joinFamily(chatId, inviteCode)
+            familyRepository.joinFamily(chatId, inviteCode, userName)
                     .subscribe().with(success -> {
                         if (success) {
                             send(new SendMessage(String.valueOf(chatId), "🤝 Вы успешно вступили в семью по ссылке!"));
@@ -84,7 +86,7 @@ public class SyncFamilyBot implements LongPollingSingleThreadUpdateConsumer {
                         }
                     });
         } else if (text.startsWith("/create_family")) {
-            familyRepository.createFamilyAndGetCode(chatId).subscribe().with(code -> {
+            familyRepository.createFamilyAndGetCode(chatId, userName).subscribe().with(code -> {
 
                 String inviteLink = "https://t.me/" + BOT_NAME + "?start=" + code;
 
