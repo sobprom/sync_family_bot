@@ -30,7 +30,7 @@ public class TelegramUiService {
         if (text == null) return "";
         StringBuilder sb = new StringBuilder();
         for (char c : text.toCharArray()) {
-            sb.append(c).append('\u0336'); // Добавляет черту после каждого символа
+            sb.append(c).append('\u0335');
         }
         return sb.toString();
     }
