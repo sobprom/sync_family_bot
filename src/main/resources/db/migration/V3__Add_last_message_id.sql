@@ -1,0 +1,2 @@
+ALTER TABLE users
+    ADD COLUMN last_message_id INTEGER;
