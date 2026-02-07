@@ -132,7 +132,7 @@ public class SyncFamilyBot implements LongPollingSingleThreadUpdateConsumer {
                     return familyRepository.getFamilyMembersByChatId(senderChatId)
                             .chain(members -> {
                                 // 3. Получаем актуальный список продуктов
-                                return productRepository.getActiveProducts(senderChatId)
+                                return productRepository.getAllProductsOrdered(senderChatId)
                                         .map(products -> Map.entry(members, products));
                             });
                 })
