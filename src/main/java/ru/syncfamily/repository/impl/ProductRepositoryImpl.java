@@ -1,7 +1,6 @@
 package ru.syncfamily.repository.impl;
 
 import jakarta.enterprise.context.ApplicationScoped;
-import org.jooq.Condition;
 import ru.syncfamily.repository.DbContext;
 import ru.syncfamily.repository.ProductRepository;
 import ru.syncfamily.service.model.Product;
@@ -19,16 +18,15 @@ public class ProductRepositoryImpl implements ProductRepository {
     @Override
     public void addProducts(DbContext ctx, long chatId, List<String> products) {
 
-        Integer familyId = getFamilyIdInternal(ctx, chatId);
+        Long familyId = getFamilyIdInternal(ctx, chatId);
 
         // Используем batch insert для производительности (Middle+ style)
         var query = ctx.dsl().insertInto(SHOPPING_LIST,
-                SHOPPING_LIST.CHAT_ID,
                 SHOPPING_LIST.PRODUCT_NAME,
                 SHOPPING_LIST.FAMILY_ID);
 
         for (String name : products) {
-            query.values((int) chatId, name, familyId);
+            query.values(name, familyId);
         }
 
         query.execute();
@@ -37,14 +35,13 @@ public class ProductRepositoryImpl implements ProductRepository {
     }
 
     @Override
-    public void markAsBought(DbContext ctx, long chatId, int productId) {
+    public void markAsBought(DbContext ctx, long chatId, long productId) {
 
-        Integer familyId = getFamilyIdInternal(ctx, chatId);
-        Condition condition = getGroupCondition(chatId, familyId);
+        Long familyId = getFamilyIdInternal(ctx, chatId);
 
         ctx.dsl().update(SHOPPING_LIST)
                 .set(SHOPPING_LIST.IS_BOUGHT, true)
-                .where(condition)
+                .where(SHOPPING_LIST.FAMILY_ID.eq(familyId))
                 .and(SHOPPING_LIST.ID.eq(productId))
                 .execute();
     }
@@ -52,11 +49,7 @@ public class ProductRepositoryImpl implements ProductRepository {
     @Override
     public List<Product> getAllProductsOrdered(DbContext ctx, long chatId) {
 
-        // 1. Сначала находим family_id пользователя
-        Integer familyId = ctx.dsl().select(USERS.FAMILY_ID)
-                .from(USERS)
-                .where(USERS.CHAT_ID.eq((int) chatId))
-                .fetchOneInto(Integer.class);
+        Long familyId = getFamilyIdInternal(ctx, chatId);
 
         if (familyId == null) return Collections.<Product>emptyList();
 
@@ -70,29 +63,18 @@ public class ProductRepositoryImpl implements ProductRepository {
                         SHOPPING_LIST.CREATED_AT.desc()
                 )
                 .fetchInto(Product.class);
-
     }
 
     /**
      * Вспомогательный метод для получения family_id пользователя.
      * Возвращает Integer, так как это тип первичного ключа в таблице FAMILIES.
      */
-    private Integer getFamilyIdInternal(DbContext ctx, long chatId) {
+    private Long getFamilyIdInternal(DbContext ctx, long chatId) {
         return ctx.dsl().select(USERS.FAMILY_ID)
                 .from(USERS)
-                .where(USERS.CHAT_ID.eq((int) chatId))
-                .fetchOneInto(Integer.class);
+                .where(USERS.CHAT_ID.eq(chatId))
+                .fetchOneInto(Long.class);
     }
 
-    /**
-     * Универсальный метод для создания условия поиска (по семье или по chat_id).
-     */
-    private Condition getGroupCondition(long chatId, Integer familyId) {
-        if (familyId != null) {
-            return SHOPPING_LIST.FAMILY_ID.eq(familyId);
-        } else {
-            return SHOPPING_LIST.CHAT_ID.eq((int) chatId);
-        }
-    }
 
 }

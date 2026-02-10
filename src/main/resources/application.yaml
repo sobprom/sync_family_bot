@@ -1,11 +1,12 @@
 quarkus:
   datasource:
-    db-kind: sqlite
+    db-kind: postgresql
+    username: bot
+    password: bot
     jdbc:
-      driver: org.sqlite.JDBC
-      url: jdbc:sqlite:sync_family.db
-      max-size: 5
-      min-size: 1
+      url: jdbc:postgresql://localhost:5432/bots
+      driver: org.postgresql.Driver
+      max-size: 10
 
   flyway:
     baseline-on-migrate: true
@@ -13,7 +14,7 @@ quarkus:
     locations: db/migration
 
   jooq:
-    dialect: sqlite
+    dialect: Postgres
 
   log:
     level: INFO

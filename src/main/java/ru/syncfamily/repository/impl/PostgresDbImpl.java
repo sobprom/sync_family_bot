@@ -8,13 +8,13 @@ import lombok.RequiredArgsConstructor;
 import org.jooq.DSLContext;
 import org.jooq.impl.DSL;
 import ru.syncfamily.repository.DbContext;
-import ru.syncfamily.repository.SqlLiteDb;
+import ru.syncfamily.repository.PostgresDb;
 
 import java.util.function.Function;
 
 @ApplicationScoped
 @RequiredArgsConstructor(onConstructor_ = @Inject)
-public class SqlLiteDbImpl implements SqlLiteDb {
+public class PostgresDbImpl implements PostgresDb {
 
     private final DSLContext dsl;
 

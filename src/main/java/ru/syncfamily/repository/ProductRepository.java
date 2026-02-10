@@ -7,7 +7,7 @@ import java.util.List;
 public interface ProductRepository {
     void addProducts(DbContext ctx, long chatId, List<String> products);
 
-    void markAsBought(DbContext ctx, long chatId, int productId);
+    void markAsBought(DbContext ctx, long chatId, long productId);
 
     List<Product> getAllProductsOrdered(DbContext ctx, long chatId);
 }

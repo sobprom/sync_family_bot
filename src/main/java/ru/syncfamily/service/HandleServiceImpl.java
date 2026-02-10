@@ -17,7 +17,7 @@ import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 import org.telegram.telegrambots.meta.generics.TelegramClient;
 import ru.syncfamily.repository.FamilyRepository;
 import ru.syncfamily.repository.ProductRepository;
-import ru.syncfamily.repository.SqlLiteDb;
+import ru.syncfamily.repository.PostgresDb;
 import ru.syncfamily.service.model.Product;
 import ru.syncfamily.service.model.User;
 
@@ -35,7 +35,7 @@ public class HandleServiceImpl implements HandleService {
 
     public static final String BOT_NAME = "sync_family_bot";
 
-    private final SqlLiteDb db;
+    private final PostgresDb db;
     private final ListParser listParser;
     private final TelegramUiService uiService;
     private final TelegramClient telegramClient;
