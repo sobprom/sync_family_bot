@@ -6,6 +6,7 @@ import ru.syncfamily.repository.FamilyRepository;
 import ru.syncfamily.service.model.User;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 import static ru.syncfamily.jooq.Tables.FAMILIES;
@@ -19,31 +20,35 @@ public class FamilyRepositoryImpl implements FamilyRepository {
 
         String code = UUID.randomUUID().toString();
 
-        // 1. Создаем семью
         var familyId = ctx.dsl().insertInto(FAMILIES)
                 .set(FAMILIES.INVITE_CODE, code)
-                .returning(FAMILIES.ID)
+                .returningResult(FAMILIES.ID)
                 .fetchOneInto(Long.class);
 
-        // 2. Привязываем создателя
         upsertUserFamily(ctx, chatId, familyId, userName);
         return code;
 
     }
 
     @Override
-    public List<User> getFamilyMembersByChatId(DbContext ctx, long chatId) {
+    public Optional<User> getFamilyMemberByChatId(DbContext ctx, long chatId) {
 
         return ctx.dsl().selectFrom(USERS)
                 .where(USERS.CHAT_ID.eq(chatId))
-                .fetchInto(User.class);
+                .fetchOptionalInto(User.class);
     }
 
+    @Override
+    public List<User> getFamilyMembersByFamilyId(DbContext ctx, long familyId) {
+
+        return ctx.dsl().selectFrom(USERS)
+                .where(USERS.FAMILY_ID.eq(familyId))
+                .fetchInto(User.class);
+    }
 
     @Override
     public boolean joinFamily(DbContext ctx, long chatId, String code, String userName) {
 
-        // 1. Ищем ID семьи по коду
         Long familyId = ctx.dsl().select(FAMILIES.ID)
                 .from(FAMILIES)
                 .where(FAMILIES.INVITE_CODE.eq(code))
@@ -51,7 +56,6 @@ public class FamilyRepositoryImpl implements FamilyRepository {
 
         if (familyId == null) return false;
 
-        // 2. Привязываем пользователя
         upsertUserFamily(ctx, chatId, familyId, userName);
         return true;
 
@@ -64,9 +68,7 @@ public class FamilyRepositoryImpl implements FamilyRepository {
             return;
         }
 
-        // 1. Создаем список запросов для пакетного выполнения
         var batchQueries = users.stream()
-                .filter(u -> u != null && u.getChatId() != null)
                 .map(user -> ctx.dsl()
                         .update(USERS)
                         .set(USERS.LAST_MESSAGE_ID, user.getLastMessageId())
@@ -74,7 +76,6 @@ public class FamilyRepositoryImpl implements FamilyRepository {
                 )
                 .toList();
 
-        // 2. Выполняем все запросы за один раз
         ctx.dsl().batch(batchQueries).execute();
     }
 

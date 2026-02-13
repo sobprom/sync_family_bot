@@ -5,6 +5,7 @@ import io.smallrye.mutiny.infrastructure.Infrastructure;
 import jakarta.enterprise.context.ApplicationScoped;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.tuple.Pair;
 import org.telegram.telegrambots.meta.api.methods.AnswerCallbackQuery;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.DeleteMessage;
@@ -16,8 +17,8 @@ import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKe
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 import org.telegram.telegrambots.meta.generics.TelegramClient;
 import ru.syncfamily.repository.FamilyRepository;
-import ru.syncfamily.repository.ProductRepository;
 import ru.syncfamily.repository.PostgresDb;
+import ru.syncfamily.repository.ProductRepository;
 import ru.syncfamily.service.model.Product;
 import ru.syncfamily.service.model.User;
 
@@ -47,30 +48,40 @@ public class HandleServiceImpl implements HandleService {
         return Uni.createFrom().deferred(() -> {
             long senderChatId = update.getMessage().getChatId();
             String text = update.getMessage().getText();
-            List<String> items = listParser.parse(text);
+            List<String> productsFromChat = listParser.parse(text);
 
             return db.async(ctx -> {
-                productRepository.addProducts(ctx, senderChatId, items);
-                var users = familyRepository.getFamilyMembersByChatId(ctx, senderChatId);
-                var products = productRepository.getAllProductsOrdered(ctx, senderChatId);
-                return Map.entry(users, products);
-            }).invoke(entry -> {
-                List<User> users = entry.getKey();
-                List<Product> products = entry.getValue();
-                for (var user : users) {
+                var currentUser = familyRepository.getFamilyMemberByChatId(ctx, senderChatId)
+                        .orElseThrow();
+                var familyId = currentUser.getFamilyId();
+                productRepository.addProducts(ctx, familyId, productsFromChat);
+                var productsOrdered = productRepository.getAllProductsOrdered(ctx, familyId);
+                var allUsers = familyRepository.getFamilyMembersByFamilyId(ctx, familyId);
+                return Pair.of(allUsers, productsOrdered);
+            }).flatMap(tuple -> {
+                var allUsers = tuple.getLeft();
+                var productsOrdered = tuple.getRight();
+                for (var user : allUsers) {
                     if (user.getLastMessageId() != null && user.getLastMessageId() != 0) {
                         send(new DeleteMessage(String.valueOf(user.getChatId()), user.getLastMessageId()));
                     }
                     var message = SendMessage.builder()
                             .chatId(user.getChatId())
                             .text("🛒 Список покупок обновлен (" + update.getMessage().getFrom().getFirstName() + "):")
-                            .replyMarkup(uiService.createShoppingListKeyboard(products))
+                            .replyMarkup(uiService.createShoppingListKeyboard(productsOrdered))
                             .build();
-                    send(message);
+                    var sent = send(message);
+                    if (Objects.nonNull(sent)) {
+                        user.setLastMessageId(sent.getMessageId());
+                    }
                 }
+
+                return db.async(ctx -> {
+                    familyRepository.updateLastMessageId(ctx, allUsers);
+                    return true;
+                });
             }).replaceWithVoid();
         }).runSubscriptionOn(Infrastructure.getDefaultWorkerPool());
-
     }
 
     @Override
@@ -145,9 +156,12 @@ public class HandleServiceImpl implements HandleService {
 
             // 2. Сначала отмечаем в БД, потом запрашиваем обновленный список
             return db.async(ctx -> {
-                        productRepository.markAsBought(ctx, chatId, productId);
-                        var products = productRepository.getAllProductsOrdered(ctx, chatId);
-                        var users = familyRepository.getFamilyMembersByChatId(ctx, chatId);
+                        var user = familyRepository.getFamilyMemberByChatId(ctx, chatId)
+                                .orElseThrow();
+                        var familyId = user.getFamilyId();
+                        productRepository.markAsBought(ctx, familyId, productId);
+                        var products = productRepository.getAllProductsOrdered(ctx, familyId);
+                        var users = familyRepository.getFamilyMembersByFamilyId(ctx, familyId);
                         return Map.entry(users, products);
                     })
                     .map(entry -> {

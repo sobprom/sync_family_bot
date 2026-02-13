@@ -5,39 +5,39 @@ import ru.syncfamily.repository.DbContext;
 import ru.syncfamily.repository.ProductRepository;
 import ru.syncfamily.service.model.Product;
 
-import java.util.Collections;
 import java.util.List;
 
 import static ru.syncfamily.jooq.Tables.SHOPPING_LIST;
-import static ru.syncfamily.jooq.Tables.USERS;
 
 @ApplicationScoped
 public class ProductRepositoryImpl implements ProductRepository {
 
 
     @Override
-    public void addProducts(DbContext ctx, long chatId, List<String> products) {
+    public void addProducts(DbContext ctx, long familyId, List<String> products) {
 
-        Long familyId = getFamilyIdInternal(ctx, chatId);
+        var query = ctx.dsl()
+                .insertInto(SHOPPING_LIST)
+                .columns(
+                        SHOPPING_LIST.FAMILY_ID,
+                        SHOPPING_LIST.PRODUCT_NAME
+                )
+                .values((Long) null, null)
+                .onConflictDoNothing();
 
-        // Используем batch insert для производительности (Middle+ style)
-        var query = ctx.dsl().insertInto(SHOPPING_LIST,
-                SHOPPING_LIST.PRODUCT_NAME,
-                SHOPPING_LIST.FAMILY_ID);
+        var batchInsert = ctx.dsl().batch(query);
 
-        for (String name : products) {
-            query.values(name, familyId);
-        }
+        products.forEach(name -> batchInsert.bind(
+                familyId,
+                name
+        ));
 
-        query.execute();
-
+        batchInsert.execute();
 
     }
 
     @Override
-    public void markAsBought(DbContext ctx, long chatId, long productId) {
-
-        Long familyId = getFamilyIdInternal(ctx, chatId);
+    public void markAsBought(DbContext ctx, long familyId, long productId) {
 
         ctx.dsl().update(SHOPPING_LIST)
                 .set(SHOPPING_LIST.IS_BOUGHT, true)
@@ -47,15 +47,8 @@ public class ProductRepositoryImpl implements ProductRepository {
     }
 
     @Override
-    public List<Product> getAllProductsOrdered(DbContext ctx, long chatId) {
+    public List<Product> getAllProductsOrdered(DbContext ctx, long familyId) {
 
-        Long familyId = getFamilyIdInternal(ctx, chatId);
-
-        if (familyId == null) return Collections.<Product>emptyList();
-
-        // 2. Получаем все продукты семьи с сортировкой
-        // Сначала те, у которых is_bought = false (0), потом true (1)
-        // Внутри этих групп сортируем по времени создания (новые сверху)
         return ctx.dsl().selectFrom(SHOPPING_LIST)
                 .where(SHOPPING_LIST.FAMILY_ID.eq(familyId))
                 .orderBy(
@@ -63,17 +56,6 @@ public class ProductRepositoryImpl implements ProductRepository {
                         SHOPPING_LIST.CREATED_AT.desc()
                 )
                 .fetchInto(Product.class);
-    }
-
-    /**
-     * Вспомогательный метод для получения family_id пользователя.
-     * Возвращает Integer, так как это тип первичного ключа в таблице FAMILIES.
-     */
-    private Long getFamilyIdInternal(DbContext ctx, long chatId) {
-        return ctx.dsl().select(USERS.FAMILY_ID)
-                .from(USERS)
-                .where(USERS.CHAT_ID.eq(chatId))
-                .fetchOneInto(Long.class);
     }
 
 

@@ -6,7 +6,6 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import lombok.RequiredArgsConstructor;
 import org.jooq.DSLContext;
-import org.jooq.impl.DSL;
 import ru.syncfamily.repository.DbContext;
 import ru.syncfamily.repository.PostgresDb;
 
@@ -20,9 +19,8 @@ public class PostgresDbImpl implements PostgresDb {
 
     @Override
     public <T> Uni<T> async(Function<DbContext, T> func) {
-        return Uni.createFrom().item(() -> dsl.transactionResult(configuration -> {
-            DbContext ctx = () -> DSL.using(configuration);
-            return func.apply(ctx);
-        })).runSubscriptionOn(Infrastructure.getDefaultWorkerPool());
+        return Uni.createFrom().item(() -> dsl.transactionResult(configuration ->
+                        func.apply(DbContextImpl.of(configuration.dsl()))))
+                .runSubscriptionOn(Infrastructure.getDefaultWorkerPool());
     }
 }

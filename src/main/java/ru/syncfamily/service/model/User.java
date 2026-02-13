@@ -10,6 +10,6 @@ import lombok.NoArgsConstructor;
 public class User {
     private Long chatId;
     private String username;
-    private Integer familyId;
+    private Long familyId;
     private Integer lastMessageId;
 }

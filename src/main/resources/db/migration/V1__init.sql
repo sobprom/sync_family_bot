@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS family_sync.users
 (
     chat_id         int8 primary key,
     family_id       int8 references family_sync.families (id),
-    last_message_id int4 not null ,
+    last_message_id int4,
     created_at      timestamptz not null default now(),
     username        text not null
 );
