@@ -1,11 +1,15 @@
 quarkus:
   datasource:
-    db-kind: sqlite
+    db-kind: postgresql
+    username: bot
+    password: bot
     jdbc:
-      driver: org.sqlite.JDBC
-      url: jdbc:sqlite:sync_family.db
-      max-size: 5
-      min-size: 1
+      url: jdbc:postgresql://localhost:5432/bots?currentSchema=family_sync
+      driver: org.postgresql.Driver
+      max-size: 10
+  log:
+    file:
+      encoding: UTF-8
 
   flyway:
     baseline-on-migrate: true
@@ -13,15 +17,12 @@ quarkus:
     locations: db/migration
 
   jooq:
-    dialect: sqlite
+    dialect: Postgres
 
-  log:
-    level: INFO
-    category:
-      "ru.syncfamily":
-        level: DEBUG
-      "org.jooq":
-        level: WARN
+logging:
+  level:
+    org:
+      jooq: DEBUG
 
 sync-family:
   bot:

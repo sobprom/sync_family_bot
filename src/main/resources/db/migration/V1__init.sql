@@ -1,15 +1,34 @@
-CREATE TABLE users
+CREATE SCHEMA IF NOT EXISTS family_sync;
+
+-- Таблица семей
+CREATE TABLE IF NOT EXISTS family_sync.families
 (
-    chat_id   INTEGER PRIMARY KEY,
-    family_id TEXT,
-    username  TEXT
+    id          bigserial primary key,
+    created_at  timestamptz not null default now(),
+    invite_code text unique not null
 );
 
-CREATE TABLE shopping_list
+-- Таблица пользователей
+CREATE TABLE IF NOT EXISTS family_sync.users
 (
-    id           INTEGER PRIMARY KEY AUTOINCREMENT,
-    chat_id      INTEGER,
-    product_name TEXT NOT NULL,
-    is_bought    BOOLEAN  DEFAULT FALSE,
-    created_at   DATETIME DEFAULT CURRENT_TIMESTAMP
+    chat_id         int8 primary key,
+    family_id       int8 references family_sync.families (id),
+    last_message_id int4,
+    created_at      timestamptz not null default now(),
+    username        text not null
 );
+
+-- Таблица списка покупок
+CREATE TABLE IF NOT EXISTS family_sync.shopping_list
+(
+    id           bigserial primary key,
+    family_id    int8 references family_sync.families (id),
+    created_at   timestamptz not null default now(),
+    is_bought    boolean not null default false,
+    product_name text not null
+
+);
+
+-- Индексы для быстрого поиска
+CREATE INDEX IF NOT EXISTS idx_shopping_list_family ON family_sync.shopping_list (family_id);
+CREATE INDEX IF NOT EXISTS idx_users_family ON family_sync.users (family_id);
