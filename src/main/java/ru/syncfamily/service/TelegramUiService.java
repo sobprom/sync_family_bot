@@ -8,4 +8,5 @@ import java.util.List;
 public interface TelegramUiService {
 
     InlineKeyboardMarkup createShoppingListKeyboard(List<Product> products);
+
 }

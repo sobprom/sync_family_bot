@@ -5,9 +5,11 @@ import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMa
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardRow;
 import ru.syncfamily.service.TelegramUiService;
+import ru.syncfamily.service.model.CallBack;
 import ru.syncfamily.service.model.Product;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 @ApplicationScoped
 public class TelegramUiServiceImpl implements TelegramUiService {
@@ -16,24 +18,25 @@ public class TelegramUiServiceImpl implements TelegramUiService {
     public InlineKeyboardMarkup createShoppingListKeyboard(List<Product> products) {
         List<InlineKeyboardRow> rows = products.stream().map(product -> {
             // Формируем текст: если куплено, зачеркиваем
-            String label = product.isBought() ? "✅ " + strikethrough(product.getProductName()) : product.getProductName();
+            String label = product.isBought() ? "✅ " + product.getProductName() : product.getProductName();
 
             var button = InlineKeyboardButton.builder()
                     .text(label)
-                    .callbackData("buy_" + product.getId()) // Префикс для обработки клика
+                    .callbackData(CallBack.BUY.getAction() + product.getId())
                     .build();
             return new InlineKeyboardRow(button);
-        }).toList();
+        }).collect(Collectors.toList());
+
+        // 2. Добавляем "отступ" и кнопку удаления, если список не пуст
+        if (!products.isEmpty()) {
+
+            rows.add(new InlineKeyboardRow(InlineKeyboardButton.builder()
+                    .text("🚨 ОЧИСТИТЬ ВЕСЬ СПИСОК")
+                    .callbackData(CallBack.CONFIRM_CLEAR.getAction()) // Сначала просим подтверждение
+                    .build()));
+        }
 
         return new InlineKeyboardMarkup(rows);
     }
 
-    private String strikethrough(String text) {
-        if (text == null) return "";
-        StringBuilder sb = new StringBuilder();
-        for (char c : text.toCharArray()) {
-            sb.append(c).append('\u0335');
-        }
-        return sb.toString();
-    }
 }

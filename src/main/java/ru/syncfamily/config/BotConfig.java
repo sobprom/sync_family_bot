@@ -17,6 +17,9 @@ public class BotConfig {
     @ConfigProperty(name = "sync-family.bot.token")
     String botToken;
 
+    public static final String BOT_NAME = "sync_family_bot";
+
+
     @Produces
     @ApplicationScoped
     public TelegramClient telegramClient() {
