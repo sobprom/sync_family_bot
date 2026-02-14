@@ -7,7 +7,7 @@ import java.util.List;
 public interface ProductRepository {
     void addProducts(DbContext ctx, long familyId, List<String> products);
 
-    void markAsBought(DbContext ctx, long familyId, long productId);
+    void inverseBought(DbContext ctx, long familyId, long productId);
 
     List<Product> getAllProductsOrdered(DbContext ctx, long familyId);
 }

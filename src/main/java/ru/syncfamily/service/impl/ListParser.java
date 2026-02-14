@@ -1,4 +1,4 @@
-package ru.syncfamily.service;
+package ru.syncfamily.service.impl;
 
 import jakarta.enterprise.context.ApplicationScoped;
 

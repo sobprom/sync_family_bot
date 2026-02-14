@@ -1,4 +1,4 @@
-package ru.syncfamily.service;
+package ru.syncfamily.service.impl;
 
 import io.smallrye.mutiny.Uni;
 import io.smallrye.mutiny.infrastructure.Infrastructure;
@@ -19,6 +19,8 @@ import org.telegram.telegrambots.meta.generics.TelegramClient;
 import ru.syncfamily.repository.FamilyRepository;
 import ru.syncfamily.repository.PostgresDb;
 import ru.syncfamily.repository.ProductRepository;
+import ru.syncfamily.service.HandleService;
+import ru.syncfamily.service.TelegramUiService;
 import ru.syncfamily.service.model.Product;
 import ru.syncfamily.service.model.User;
 
@@ -26,7 +28,6 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 
 @Slf4j
@@ -55,7 +56,7 @@ public class HandleServiceImpl implements HandleService {
                         .orElseThrow();
                 var familyId = currentUser.getFamilyId();
                 productRepository.addProducts(ctx, familyId, productsFromChat);
-                var productsOrdered = productRepository.getAllProductsOrdered(ctx, familyId);
+                List<Product> productsOrdered = productRepository.getAllProductsOrdered(ctx, familyId);
                 var allUsers = familyRepository.getFamilyMembersByFamilyId(ctx, familyId);
                 return Pair.of(allUsers, productsOrdered);
             }).flatMap(tuple -> {
@@ -159,37 +160,40 @@ public class HandleServiceImpl implements HandleService {
                         var user = familyRepository.getFamilyMemberByChatId(ctx, chatId)
                                 .orElseThrow();
                         var familyId = user.getFamilyId();
-                        productRepository.markAsBought(ctx, familyId, productId);
-                        var products = productRepository.getAllProductsOrdered(ctx, familyId);
-                        var users = familyRepository.getFamilyMembersByFamilyId(ctx, familyId);
-                        return Map.entry(users, products);
+                        productRepository.inverseBought(ctx, familyId, productId);
+                        List<Product> products = productRepository.getAllProductsOrdered(ctx, familyId);
+                        List<User> users = familyRepository.getFamilyMembersByFamilyId(ctx, familyId);
+                        return Pair.of(users, products);
                     })
-                    .map(entry -> {
-                        // Гасим "часики" в Telegram сразу после получения данных
+                    .map(pair -> {
 
-
-                        var products = entry.getValue();
-                        var users = entry.getKey();
+                        var users = pair.getLeft();
+                        var products = pair.getRight();
 
                         List<User> updatedUsers = new ArrayList<>();
 
+                        var productOpt = products.stream()
+                                .filter(p -> p.getId().equals(productId))
+                                .findFirst();
+
+                        if (productOpt.isEmpty()) {
+                            return updatedUsers;
+                        }
+
+                        var product = productOpt.get();
+
                         for (var user : users) {
-                            // Находим имя купленного товара для заголовка
-                            String productName = products.stream()
-                                    .filter(p -> p.getId().equals(productId))
-                                    .map(Product::getProductName)
-                                    .findFirst()
-                                    .orElse("товара");
 
                             // 2. Удаляем предыдущее сообщение со списком
                             if (user.getLastMessageId() != null && user.getLastMessageId() != 0) {
                                 send(new DeleteMessage(String.valueOf(user.getChatId()), user.getLastMessageId()));
                             }
 
+                            String action = product.isBought() ? "купил(а)" : "отменил(а) покупку";
+
                             String messageText = String.format(
-                                    "🛒 *Список обновлен* ✅ *%s* купил(а): *%s*",
-                                    actor,
-                                    productName
+                                    "🛒 *Список обновлен* ✅ *%s* %s: *%s*",
+                                    actor, action, product.getProductName()
                             );
                             var message = SendMessage.builder()
                                     .chatId(user.getChatId())
