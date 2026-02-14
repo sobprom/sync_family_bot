@@ -1,9 +1,10 @@
-package ru.syncfamily.service;
+package ru.syncfamily.service.impl;
 
 import jakarta.enterprise.context.ApplicationScoped;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardRow;
+import ru.syncfamily.service.TelegramUiService;
 import ru.syncfamily.service.model.Product;
 
 import java.util.List;

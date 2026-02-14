@@ -7,6 +7,8 @@ import ru.syncfamily.service.model.Product;
 
 import java.util.List;
 
+import static org.jooq.impl.DSL.condition;
+import static org.jooq.impl.DSL.field;
 import static ru.syncfamily.jooq.Tables.SHOPPING_LIST;
 
 @ApplicationScoped
@@ -37,10 +39,10 @@ public class ProductRepositoryImpl implements ProductRepository {
     }
 
     @Override
-    public void markAsBought(DbContext ctx, long familyId, long productId) {
+    public void inverseBought(DbContext ctx, long familyId, long productId) {
 
         ctx.dsl().update(SHOPPING_LIST)
-                .set(SHOPPING_LIST.IS_BOUGHT, true)
+                .set(SHOPPING_LIST.IS_BOUGHT, field(condition(SHOPPING_LIST.IS_BOUGHT).not()))
                 .where(SHOPPING_LIST.FAMILY_ID.eq(familyId))
                 .and(SHOPPING_LIST.ID.eq(productId))
                 .execute();
