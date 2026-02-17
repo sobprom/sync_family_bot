@@ -53,11 +53,11 @@ public class CommandServiceImpl implements CommandService {
 
         String inviteCode = text.replace("/start ", "").trim();
         return db.async(ctx -> familyRepository.joinFamily(ctx, chatId, inviteCode, userName))
-                .invoke(success -> {
+                .map(success -> {
                     if (Boolean.TRUE.equals(success)) {
-                        sendService.send(new SendMessage(String.valueOf(chatId), "🤝 Вы успешно вступили в семью по ссылке!"));
+                        return sendService.send(new SendMessage(String.valueOf(chatId), "🤝 Вы успешно вступили в семью по ссылке!"));
                     } else {
-                        sendService.send(new SendMessage(String.valueOf(chatId), "❌ Ссылка недействительна или устарела."));
+                        return sendService.send(new SendMessage(String.valueOf(chatId), "❌ Ссылка недействительна или устарела."));
                     }
                 }).replaceWithVoid();
     }
@@ -68,7 +68,7 @@ public class CommandServiceImpl implements CommandService {
         String userName = update.getMessage().getFrom().getFirstName();
 
         return db.async(ctx -> familyRepository.createFamilyAndGetCode(ctx, chatId, userName))
-                .invoke(code -> {
+                .map(code -> {
 
                     String inviteLink = "https://t.me/" + BOT_NAME + "?start=" + code;
                     String shareUrl = "https://t.me/share/url?url="
@@ -84,7 +84,7 @@ public class CommandServiceImpl implements CommandService {
                             ))
                             .build();
 
-                    sendService.send(SendMessage.builder()
+                    return sendService.send(SendMessage.builder()
                             .chatId(chatId)
                             .text("Семья создана! Нажми кнопку ниже, чтобы отправить ссылку:")
                             .replyMarkup(markup)

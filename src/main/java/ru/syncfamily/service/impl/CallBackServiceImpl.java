@@ -107,8 +107,6 @@ public class CallBackServiceImpl implements CallBackService {
                                 updatedUsers.add(user);
                             }
                         }
-
-
                     }
                     return updatedUsers;
 
@@ -146,11 +144,59 @@ public class CallBackServiceImpl implements CallBackService {
 
     @Override
     public Uni<Void> handleClearAll(Update update) {
-        return null;
+        var callbackQuery = update.getCallbackQuery();
+        long chatId = callbackQuery.getMessage().getChatId();
+        String actor = callbackQuery.getFrom().getFirstName();
+        return db.async(ctx -> {
+
+            var user = familyRepository.getFamilyMemberByChatId(ctx, chatId).orElseThrow();
+            Long familyId = user.getFamilyId();
+
+            productRepository.deleteAllByFamilyId(ctx, familyId);
+
+            return familyRepository.getFamilyMembersByFamilyId(ctx, familyId);
+        }).map(users -> {
+
+            String messageText = String.format("🗑 *%s* очистил(а) список покупок", actor);
+
+            for (var member : users) {
+                if (member.getLastMessageId() != null) {
+                    var edit = EditMessageText.builder()
+                            .chatId(member.getChatId())
+                            .messageId(member.getLastMessageId())
+                            .text(messageText)
+                            .parseMode("Markdown")
+                            .replyMarkup(uiService.createShoppingListKeyboard(List.of()))
+                            .build();
+                    sendService.send(edit);
+                }
+            }
+            return true;
+        }).replaceWithVoid();
     }
 
     @Override
     public Uni<Void> handleRefresh(Update update) {
-        return null;
+        var callbackQuery = update.getCallbackQuery();
+        long chatId = callbackQuery.getMessage().getChatId();
+
+        return db.async(ctx -> {
+            User user = familyRepository.getFamilyMemberByChatId(ctx, chatId)
+                    .orElseThrow();
+            return Pair.of(user, productRepository.getAllProductsOrdered(ctx, user.getFamilyId()));
+        }).map(pair -> {
+
+            var user = pair.getLeft();
+            var products = pair.getRight();
+            var edit = EditMessageText.builder()
+                    .chatId(chatId)
+                    .messageId(user.getLastMessageId())
+                    .text("🛒 *Актуальный список покупок:*")
+                    .parseMode("Markdown")
+                    .replyMarkup(uiService.createShoppingListKeyboard(products))
+                    .build();
+
+            return sendService.send(edit);
+        }).replaceWithVoid();
     }
 }

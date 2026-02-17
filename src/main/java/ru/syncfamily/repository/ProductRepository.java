@@ -10,4 +10,6 @@ public interface ProductRepository {
     void inverseBought(DbContext ctx, long familyId, long productId);
 
     List<Product> getAllProductsOrdered(DbContext ctx, long familyId);
+
+    void deleteAllByFamilyId(DbContext ctx, long familyId);
 }

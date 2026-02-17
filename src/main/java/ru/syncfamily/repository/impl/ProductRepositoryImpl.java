@@ -60,5 +60,10 @@ public class ProductRepositoryImpl implements ProductRepository {
                 .fetchInto(Product.class);
     }
 
-
+    @Override
+    public void deleteAllByFamilyId(DbContext ctx, long familyId) {
+        ctx.dsl().deleteFrom(SHOPPING_LIST)
+                .where(SHOPPING_LIST.FAMILY_ID.eq(familyId))
+                .execute();
+    }
 }
