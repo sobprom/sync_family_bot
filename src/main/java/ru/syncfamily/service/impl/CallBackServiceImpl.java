@@ -171,7 +171,7 @@ public class CallBackServiceImpl implements CallBackService {
                     sendService.send(edit);
                 }
             }
-            return true;
+            return users;
         }).replaceWithVoid();
     }
 

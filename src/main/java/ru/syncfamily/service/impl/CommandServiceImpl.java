@@ -53,11 +53,11 @@ public class CommandServiceImpl implements CommandService {
 
         String inviteCode = text.replace("/start ", "").trim();
         return db.async(ctx -> familyRepository.joinFamily(ctx, chatId, inviteCode, userName))
-                .map(success -> {
+                .invoke(success -> {
                     if (Boolean.TRUE.equals(success)) {
-                        return sendService.send(new SendMessage(String.valueOf(chatId), "🤝 Вы успешно вступили в семью по ссылке!"));
+                        sendService.send(new SendMessage(String.valueOf(chatId), "🤝 Вы успешно вступили в семью по ссылке!"));
                     } else {
-                        return sendService.send(new SendMessage(String.valueOf(chatId), "❌ Ссылка недействительна или устарела."));
+                        sendService.send(new SendMessage(String.valueOf(chatId), "❌ Ссылка недействительна или устарела."));
                     }
                 }).replaceWithVoid();
     }
