@@ -26,6 +26,12 @@ import ru.syncfamily.service.model.User;
 import java.util.ArrayList;
 import java.util.List;
 
+import static ru.syncfamily.service.model.CallBack.CLEAR_ALL;
+import static ru.syncfamily.service.model.CallBack.DELETE_PRODUCT;
+import static ru.syncfamily.service.model.CallBack.EDIT_PRODUCT;
+import static ru.syncfamily.service.model.CallBack.REFRESH;
+import static ru.syncfamily.service.model.CallBack.TOGGLE_MODE_EDIT;
+
 @Slf4j
 @ApplicationScoped
 @RequiredArgsConstructor
@@ -38,6 +44,10 @@ public class CallBackServiceImpl implements CallBackService {
     private final SendService sendService;
     private final TelegramUiService uiService;
 
+    private static int getProductId(String data, CallBack confirmEditProduct) {
+        return Integer.parseInt(data.replace(confirmEditProduct.getAction(), ""));
+    }
+
     @Override
     public Uni<Void> handleBuy(Update update) {
 
@@ -46,7 +56,7 @@ public class CallBackServiceImpl implements CallBackService {
         long chatId = callbackQuery.getMessage().getChatId();
         String actor = callbackQuery.getFrom().getFirstName();
 
-        int productId = Integer.parseInt(callbackData.replace(CallBack.BUY.getAction(), ""));
+        int productId = getProductId(callbackData, CallBack.BUY);
 
         return db.async(ctx -> {
                     var user = familyRepository.getFamilyMemberByChatId(ctx, chatId)
@@ -90,7 +100,7 @@ public class CallBackServiceImpl implements CallBackService {
                                     .messageId(user.getLastMessageId())
                                     .text(messageText)
                                     .parseMode("Markdown")
-                                    .replyMarkup(uiService.createShoppingListKeyboard(products))
+                                    .replyMarkup(uiService.createShoppingListKeyboard(products, user.isShoppingListEditMode()))
                                     .build();
                             sendService.send(edit);
                         } else {
@@ -99,7 +109,7 @@ public class CallBackServiceImpl implements CallBackService {
                                     .chatId(user.getChatId())
                                     .text(messageText)
                                     .parseMode("Markdown")
-                                    .replyMarkup(uiService.createShoppingListKeyboard(products))
+                                    .replyMarkup(uiService.createShoppingListKeyboard(products, user.isShoppingListEditMode()))
                                     .build();
                             var m = sendService.send(send);
                             if (m != null) {
@@ -125,8 +135,8 @@ public class CallBackServiceImpl implements CallBackService {
                     var messageId = callbackQuery.getMessage().getMessageId();
                     var confirmMarkup = InlineKeyboardMarkup.builder()
                             .keyboardRow(new InlineKeyboardRow(
-                                    InlineKeyboardButton.builder().text("✅ ДА, УДАЛИТЬ").callbackData("clear_all").build(),
-                                    InlineKeyboardButton.builder().text("❌ ОТМЕНА").callbackData("refresh_list").build()
+                                    InlineKeyboardButton.builder().text("✅ ДА, УДАЛИТЬ").callbackData(CLEAR_ALL.getAction()).build(),
+                                    InlineKeyboardButton.builder().text("❌ ОТМЕНА").callbackData(REFRESH.getAction()).build()
                             ))
                             .build();
 
@@ -139,7 +149,88 @@ public class CallBackServiceImpl implements CallBackService {
                 })
                 .runSubscriptionOn(Infrastructure.getDefaultWorkerPool())
                 .replaceWithVoid();
+    }
 
+    @Override
+    public Uni<Void> handleConfirmEdit(Update update) {
+        var callbackQuery = update.getCallbackQuery();
+        long chatId = callbackQuery.getMessage().getChatId();
+        var messageId = callbackQuery.getMessage().getMessageId();
+        String data = callbackQuery.getData();
+        int productId = getProductId(data, CallBack.CONFIRM_EDIT_PRODUCT);
+        return db.async(ctx -> {
+                    User user = familyRepository.getFamilyMemberByChatId(ctx, chatId)
+                            .orElseThrow();
+                    var familyId = user.getFamilyId();
+                    return productRepository.findProduct(ctx, familyId, productId).orElseThrow();
+
+
+                })
+                .map(product -> {
+
+                    var productName = product.getProductName();
+
+                    var confirmMarkup = InlineKeyboardMarkup.builder()
+                            .keyboardRow(new InlineKeyboardRow(
+                                    InlineKeyboardButton.builder().text("\uD83D\uDCDD Изменить")
+                                            .callbackData(EDIT_PRODUCT.getAction() + productId).build(),
+                                    InlineKeyboardButton.builder().text("\uD83D\uDDD1 Удалить")
+                                            .callbackData(DELETE_PRODUCT.getAction() + productId).build(),
+                                    InlineKeyboardButton.builder().text("❌ ОТМЕНА")
+                                            .callbackData(TOGGLE_MODE_EDIT.getAction()).build()
+                            ))
+                            .build();
+
+                    var edit = EditMessageText.builder()
+                            .chatId(chatId)
+                            .messageId(messageId)
+                            .text("\uD83E\uDDE9 *Что делаем с:* " + productName + " ?")
+                            .parseMode("Markdown")
+                            .replyMarkup(confirmMarkup)
+                            .build();
+
+                    return sendService.send(edit);
+
+
+                })
+                .runSubscriptionOn(Infrastructure.getDefaultWorkerPool())
+                .replaceWithVoid();
+    }
+
+    @Override
+    public Uni<Void> handleEditProduct(Update update) {
+        return null;
+    }
+
+    @Override
+    public Uni<Void> handleDeleteProduct(Update update) {
+        return null;
+    }
+
+    @Override
+    public Uni<Void> handleEditMode(Update update) {
+        var callbackQuery = update.getCallbackQuery();
+        long chatId = callbackQuery.getMessage().getChatId();
+
+        return db.async(ctx -> {
+            User user = familyRepository.getFamilyMemberByChatId(ctx, chatId)
+                    .orElseThrow();
+            user = familyRepository.setShoppingEditMode(ctx, user);
+            return Pair.of(user, productRepository.getAllProductsOrdered(ctx, user.getFamilyId()));
+        }).map(pair -> {
+
+            var user = pair.getLeft();
+            var products = pair.getRight();
+            var edit = EditMessageText.builder()
+                    .chatId(chatId)
+                    .messageId(user.getLastMessageId())
+                    .text("🛒 *Режим редактирования:*")
+                    .parseMode("Markdown")
+                    .replyMarkup(uiService.createShoppingListKeyboard(products, user.isShoppingListEditMode()))
+                    .build();
+
+            return sendService.send(edit);
+        }).replaceWithVoid();
     }
 
     @Override
@@ -166,7 +257,7 @@ public class CallBackServiceImpl implements CallBackService {
                             .messageId(member.getLastMessageId())
                             .text(messageText)
                             .parseMode("Markdown")
-                            .replyMarkup(uiService.createShoppingListKeyboard(List.of()))
+                            .replyMarkup(uiService.createShoppingListKeyboard(List.of(), member.isShoppingListEditMode()))
                             .build();
                     sendService.send(edit);
                 }
@@ -183,6 +274,7 @@ public class CallBackServiceImpl implements CallBackService {
         return db.async(ctx -> {
             User user = familyRepository.getFamilyMemberByChatId(ctx, chatId)
                     .orElseThrow();
+            user = familyRepository.dropShoppingEditMode(ctx, user);
             return Pair.of(user, productRepository.getAllProductsOrdered(ctx, user.getFamilyId()));
         }).map(pair -> {
 
@@ -193,7 +285,7 @@ public class CallBackServiceImpl implements CallBackService {
                     .messageId(user.getLastMessageId())
                     .text("🛒 *Актуальный список покупок:*")
                     .parseMode("Markdown")
-                    .replyMarkup(uiService.createShoppingListKeyboard(products))
+                    .replyMarkup(uiService.createShoppingListKeyboard(products, user.isShoppingListEditMode()))
                     .build();
 
             return sendService.send(edit);

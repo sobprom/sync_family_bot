@@ -79,6 +79,26 @@ public class FamilyRepositoryImpl implements FamilyRepository {
         ctx.dsl().batch(batchQueries).execute();
     }
 
+    @Override
+    public User setShoppingEditMode(DbContext ctx, User user) {
+        user.setShoppingListEditMode(true);
+        ctx.dsl().update(USERS)
+                .set(USERS.SHOPPING_LIST_EDIT_MODE, true)
+                .where(USERS.CHAT_ID.eq(user.getChatId()))
+                .execute();
+        return user;
+    }
+
+    @Override
+    public User dropShoppingEditMode(DbContext ctx, User user) {
+        user.setShoppingListEditMode(false);
+        ctx.dsl().update(USERS)
+                .set(USERS.SHOPPING_LIST_EDIT_MODE, false)
+                .where(USERS.CHAT_ID.eq(user.getChatId()))
+                .execute();
+        return user;
+    }
+
     private void upsertUserFamily(DbContext ctx, long chatId, Long familyId, String userName) {
         ctx.dsl().insertInto(USERS)
                 .set(USERS.CHAT_ID, chatId)

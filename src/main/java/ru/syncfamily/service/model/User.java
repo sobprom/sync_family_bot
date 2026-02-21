@@ -12,4 +12,5 @@ public class User {
     private String username;
     private Long familyId;
     private Integer lastMessageId;
+    private boolean shoppingListEditMode;
 }

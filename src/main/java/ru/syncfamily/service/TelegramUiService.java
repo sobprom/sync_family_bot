@@ -7,6 +7,6 @@ import java.util.List;
 
 public interface TelegramUiService {
 
-    InlineKeyboardMarkup createShoppingListKeyboard(List<Product> products);
+    InlineKeyboardMarkup createShoppingListKeyboard(List<Product> products, boolean edit);
 
 }

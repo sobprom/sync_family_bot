@@ -66,7 +66,7 @@ public class HandleServiceImpl implements HandleService {
                     var message = SendMessage.builder()
                             .chatId(user.getChatId())
                             .text("🛒 Список покупок обновлен (" + update.getMessage().getFrom().getFirstName() + "):")
-                            .replyMarkup(uiService.createShoppingListKeyboard(productsOrdered))
+                            .replyMarkup(uiService.createShoppingListKeyboard(productsOrdered, user.isShoppingListEditMode()))
                             .build();
                     var sent = sendService.send(message);
                     if (Objects.nonNull(sent)) {
@@ -110,6 +110,10 @@ public class HandleServiceImpl implements HandleService {
             case REFRESH -> callBackService.handleRefresh(update);
             case CLEAR_ALL -> callBackService.handleClearAll(update);
             case CONFIRM_CLEAR -> callBackService.handleConfirmClear(update);
+            case TOGGLE_MODE_EDIT -> callBackService.handleEditMode(update);
+            case CONFIRM_EDIT_PRODUCT -> callBackService.handleConfirmEdit(update);
+            case EDIT_PRODUCT -> callBackService.handleEditProduct(update);
+            case DELETE_PRODUCT -> callBackService.handleDeleteProduct(update);
             case UNKNOWN -> Uni.createFrom().voidItem();
         };
 

@@ -15,7 +15,10 @@ import java.util.stream.Collectors;
 public class TelegramUiServiceImpl implements TelegramUiService {
 
     @Override
-    public InlineKeyboardMarkup createShoppingListKeyboard(List<Product> products) {
+    public InlineKeyboardMarkup createShoppingListKeyboard(List<Product> products, boolean edit) {
+        if (edit) {
+            return createEditListKeyboard(products);
+        }
         List<InlineKeyboardRow> rows = products.stream().map(product -> {
             // Формируем текст: если куплено, зачеркиваем
             String label = product.isBought() ? "✅ " + product.getProductName() : product.getProductName();
@@ -27,16 +30,46 @@ public class TelegramUiServiceImpl implements TelegramUiService {
             return new InlineKeyboardRow(button);
         }).collect(Collectors.toList());
 
-        // 2. Добавляем "отступ" и кнопку удаления, если список не пуст
-        if (!products.isEmpty()) {
 
+        if (!products.isEmpty()) {
             rows.add(new InlineKeyboardRow(InlineKeyboardButton.builder()
-                    .text("🚨 ОЧИСТИТЬ ВЕСЬ СПИСОК")
+                    .text("⚙ Редактировать список")
+                    .callbackData(CallBack.TOGGLE_MODE_EDIT.getAction()) // Сначала просим подтверждение
+                    .build()));
+            rows.add(new InlineKeyboardRow(InlineKeyboardButton.builder()
+                    .text("\uD83C\uDFC1 Завершить покупки")
                     .callbackData(CallBack.CONFIRM_CLEAR.getAction()) // Сначала просим подтверждение
                     .build()));
+
         }
 
         return new InlineKeyboardMarkup(rows);
     }
 
+
+    private InlineKeyboardMarkup createEditListKeyboard(List<Product> products) {
+        List<InlineKeyboardRow> rows = products.stream().map(product -> {
+
+            var editButton = InlineKeyboardButton.builder()
+                    .text("✏️ " + product.getProductName())
+                    .callbackData(CallBack.CONFIRM_EDIT_PRODUCT.getAction() + product.getId())
+                    .build();
+
+
+            return new InlineKeyboardRow(editButton);
+
+        }).collect(Collectors.toList());
+
+
+        if (!products.isEmpty()) {
+
+            rows.add(new InlineKeyboardRow(InlineKeyboardButton.builder()
+                    .text("⬅️ Назад к покупкам")
+                    .callbackData(CallBack.REFRESH.getAction()) // Сначала просим подтверждение
+                    .build()));
+
+        }
+
+        return new InlineKeyboardMarkup(rows);
+    }
 }
