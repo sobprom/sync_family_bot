@@ -6,6 +6,7 @@ import ru.syncfamily.repository.ProductRepository;
 import ru.syncfamily.service.model.Product;
 
 import java.util.List;
+import java.util.Optional;
 
 import static org.jooq.impl.DSL.condition;
 import static org.jooq.impl.DSL.field;
@@ -60,5 +61,26 @@ public class ProductRepositoryImpl implements ProductRepository {
                 .fetchInto(Product.class);
     }
 
+    @Override
+    public void deleteAllByFamilyId(DbContext ctx, long familyId) {
+        ctx.dsl().deleteFrom(SHOPPING_LIST)
+                .where(SHOPPING_LIST.FAMILY_ID.eq(familyId))
+                .execute();
+    }
 
+    @Override
+    public Optional<Product> findProduct(DbContext ctx, long familyId, long productId) {
+        return ctx.dsl().selectFrom(SHOPPING_LIST)
+                .where(SHOPPING_LIST.FAMILY_ID.eq(familyId))
+                .and(SHOPPING_LIST.ID.eq(productId))
+                .fetchOptionalInto(Product.class);
+    }
+
+    @Override
+    public void deleteByProductId(DbContext ctx, long familyId, long productId) {
+        ctx.dsl().deleteFrom(SHOPPING_LIST)
+                .where(SHOPPING_LIST.FAMILY_ID.eq(familyId))
+                .and(SHOPPING_LIST.ID.eq(productId))
+                .execute();
+    }
 }

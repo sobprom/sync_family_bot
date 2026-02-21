@@ -15,4 +15,8 @@ public interface FamilyRepository {
     boolean joinFamily(DbContext ctx, long chatId, String code, String userName);
 
     void updateLastMessageId(DbContext ctx, List<User> users);
+
+    User setShoppingEditMode(DbContext ctx, User user);
+
+    User dropShoppingEditMode(DbContext ctx, User user);
 }

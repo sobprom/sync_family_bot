@@ -8,7 +8,15 @@ public interface CallBackService {
 
     Uni<Void> handleConfirmClear(Update update);
 
+    Uni<Void> handleEditMode(Update update);
+
+    Uni<Void> handleConfirmEdit(Update update);
+
     Uni<Void> handleClearAll(Update update);
 
     Uni<Void> handleRefresh(Update update);
+
+    Uni<Void> handleEditProduct(Update update);
+
+    Uni<Void> handleDeleteProduct(Update update);
 }
