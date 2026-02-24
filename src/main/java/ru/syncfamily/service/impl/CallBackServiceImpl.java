@@ -7,6 +7,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.tuple.Pair;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
+import org.telegram.telegrambots.meta.api.methods.updatingmessages.DeleteMessage;
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageReplyMarkup;
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageText;
 import org.telegram.telegrambots.meta.api.objects.Update;
@@ -25,8 +26,10 @@ import ru.syncfamily.service.model.User;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 
 import static ru.syncfamily.service.model.CallBack.CLEAR_ALL;
+import static ru.syncfamily.service.model.CallBack.CONFIRM_DELETE_PRODUCT;
 import static ru.syncfamily.service.model.CallBack.DELETE_PRODUCT;
 import static ru.syncfamily.service.model.CallBack.EDIT_PRODUCT;
 import static ru.syncfamily.service.model.CallBack.REFRESH;
@@ -175,7 +178,7 @@ public class CallBackServiceImpl implements CallBackService {
                                     InlineKeyboardButton.builder().text("\uD83D\uDCDD Изменить")
                                             .callbackData(EDIT_PRODUCT.getAction() + productId).build(),
                                     InlineKeyboardButton.builder().text("\uD83D\uDDD1 Удалить")
-                                            .callbackData(DELETE_PRODUCT.getAction() + productId).build(),
+                                            .callbackData(CONFIRM_DELETE_PRODUCT.getAction() + productId).build(),
                                     InlineKeyboardButton.builder().text("❌ ОТМЕНА")
                                             .callbackData(TOGGLE_MODE_EDIT.getAction()).build()
                             ))
@@ -203,8 +206,92 @@ public class CallBackServiceImpl implements CallBackService {
     }
 
     @Override
+    public Uni<Void> handleConfirmDeleteProduct(Update update) {
+        var callbackQuery = update.getCallbackQuery();
+        long chatId = callbackQuery.getMessage().getChatId();
+        var messageId = callbackQuery.getMessage().getMessageId();
+        String data = callbackQuery.getData();
+        int productId = getProductId(data, CONFIRM_DELETE_PRODUCT);
+        return db.async(ctx -> {
+                    User user = familyRepository.getFamilyMemberByChatId(ctx, chatId)
+                            .orElseThrow();
+                    var familyId = user.getFamilyId();
+                    return productRepository.findProduct(ctx, familyId, productId).orElseThrow();
+
+
+                })
+                .map(product -> {
+
+                    var productName = product.getProductName();
+
+                    var confirmMarkup = InlineKeyboardMarkup.builder()
+                            .keyboardRow(new InlineKeyboardRow(
+                                    InlineKeyboardButton.builder().text("\uD83D\uDDD1 Точно удалить?")
+                                            .callbackData(DELETE_PRODUCT.getAction() + productId).build(),
+                                    InlineKeyboardButton.builder().text("❌ ОТМЕНА")
+                                            .callbackData(TOGGLE_MODE_EDIT.getAction()).build()
+                            ))
+                            .build();
+
+                    var edit = EditMessageText.builder()
+                            .chatId(chatId)
+                            .messageId(messageId)
+                            .text("\uD83E\uDDE9 *Что делаем с:* " + productName + " ?")
+                            .parseMode("Markdown")
+                            .replyMarkup(confirmMarkup)
+                            .build();
+
+                    return sendService.send(edit);
+
+                })
+                .runSubscriptionOn(Infrastructure.getDefaultWorkerPool())
+                .replaceWithVoid();
+    }
+
+    @Override
     public Uni<Void> handleDeleteProduct(Update update) {
-        return null;
+        return Uni.createFrom().deferred(() -> {
+            var callbackQuery = update.getCallbackQuery();
+            long chatId = callbackQuery.getMessage().getChatId();
+            String data = callbackQuery.getData();
+            int productId = getProductId(data, DELETE_PRODUCT);
+
+            return db.async(ctx -> {
+                        var currentUser = familyRepository.getFamilyMemberByChatId(ctx, chatId)
+                                .orElseThrow();
+                        var familyId = currentUser.getFamilyId();
+                        productRepository.deleteByProductId(ctx, familyId, productId);
+                        List<Product> productsOrdered = productRepository.getAllProductsOrdered(ctx, familyId);
+                        List<User> allUsers = familyRepository.getFamilyMembersByFamilyId(ctx, familyId);
+                        return Pair.of(allUsers, productsOrdered);
+                    })
+                    .flatMap(this::refreshMessage)
+                    .replaceWithVoid();
+        }).runSubscriptionOn(Infrastructure.getDefaultWorkerPool());
+    }
+
+    private Uni<Boolean> refreshMessage(Pair<List<User>, List<Product>> tuple) {
+        var allUsers = tuple.getLeft();
+        var productsOrdered = tuple.getRight();
+        for (var user : allUsers) {
+            if (user.getLastMessageId() != null && user.getLastMessageId() != 0) {
+                sendService.send(new DeleteMessage(String.valueOf(user.getChatId()), user.getLastMessageId()));
+            }
+            var message = SendMessage.builder()
+                    .chatId(user.getChatId())
+                    .text("🛒 Список покупок обновлен (" + user.getUsername() + "):")
+                    .replyMarkup(uiService.createShoppingListKeyboard(productsOrdered, user.isShoppingListEditMode()))
+                    .build();
+            var sent = sendService.send(message);
+            if (Objects.nonNull(sent)) {
+                user.setLastMessageId(sent.getMessageId());
+            }
+        }
+
+        return db.async(ctx -> {
+            familyRepository.updateLastMessageId(ctx, allUsers);
+            return true;
+        });
     }
 
     @Override
