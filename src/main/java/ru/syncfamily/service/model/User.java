@@ -13,4 +13,5 @@ public class User {
     private Long familyId;
     private Integer lastMessageId;
     private boolean shoppingListEditMode;
+    private Long editingProductId;
 }

@@ -14,6 +14,7 @@ public enum CallBack {
     CLEAR_ALL("clear_all"),
     REFRESH("refresh"),
     EDIT_PRODUCT("edit_product"),
+    EDIT_PRODUCT_COMPLETE("edit_product_complete"),
     CONFIRM_DELETE_PRODUCT("confirm_delete_product"),
     DELETE_PRODUCT("delete_product"),
     UNKNOWN("");

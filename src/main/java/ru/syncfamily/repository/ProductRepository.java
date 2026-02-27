@@ -17,4 +17,6 @@ public interface ProductRepository {
     void deleteAllByFamilyId(DbContext ctx, long familyId);
 
     void deleteByProductId(DbContext ctx, long familyId, long productId);
+
+    boolean updateProductName(DbContext ctx, long familyId, long productId, String productName);
 }

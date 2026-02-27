@@ -99,6 +99,24 @@ public class FamilyRepositoryImpl implements FamilyRepository {
         return user;
     }
 
+    @Override
+    public void setEditingProductId(DbContext ctx, User user, long productId) {
+        ctx.dsl()
+                .update(USERS)
+                .set(USERS.EDITING_PRODUCT_ID, productId)
+                .where(USERS.CHAT_ID.eq(user.getChatId()))
+                .execute();
+    }
+
+    @Override
+    public void dropEditingProductId(DbContext ctx, User user) {
+        ctx.dsl()
+                .update(USERS)
+                .setNull(USERS.EDITING_PRODUCT_ID)
+                .where(USERS.CHAT_ID.eq(user.getChatId()))
+                .execute();
+    }
+
     private void upsertUserFamily(DbContext ctx, long chatId, Long familyId, String userName) {
         ctx.dsl().insertInto(USERS)
                 .set(USERS.CHAT_ID, chatId)

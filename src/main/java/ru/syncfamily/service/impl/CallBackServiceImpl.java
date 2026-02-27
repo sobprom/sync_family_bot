@@ -202,7 +202,46 @@ public class CallBackServiceImpl implements CallBackService {
 
     @Override
     public Uni<Void> handleEditProduct(Update update) {
-        return null;
+
+        var callbackQuery = update.getCallbackQuery();
+        long chatId = callbackQuery.getMessage().getChatId();
+        var messageId = callbackQuery.getMessage().getMessageId();
+        String data = callbackQuery.getData();
+        int productId = getProductId(data, EDIT_PRODUCT);
+        return db.async(ctx -> {
+
+                    User user = familyRepository.getFamilyMemberByChatId(ctx, chatId)
+                            .orElseThrow();
+
+                    // Ищем продукт. Если он удален — вернется Optional.empty()
+                    return productRepository.findProduct(ctx, user.getFamilyId(), productId)
+                            .map(product -> {
+                                // Если продукт найден, проставляем статус редактирования
+                                familyRepository.setEditingProductId(ctx, user, productId);
+                                return product;
+                            });
+
+                })
+                .chain(productOpt -> {
+
+                    if (productOpt.isEmpty()) {
+                        return Uni.createFrom().voidItem();
+                    }
+
+                    var productName = productOpt.get().getProductName();
+
+                    var edit = EditMessageText.builder()
+                            .chatId(chatId)
+                            .messageId(messageId)
+                            .text("🧩 *Введите новое название для:* " + productName)
+                            .parseMode("Markdown")
+                            .build();
+
+                    return Uni.createFrom().item(() -> sendService.send(edit))
+                            .replaceWithVoid();
+                })
+                .runSubscriptionOn(Infrastructure.getDefaultWorkerPool());
+
     }
 
     @Override
@@ -226,7 +265,7 @@ public class CallBackServiceImpl implements CallBackService {
 
                     var confirmMarkup = InlineKeyboardMarkup.builder()
                             .keyboardRow(new InlineKeyboardRow(
-                                    InlineKeyboardButton.builder().text("\uD83D\uDDD1 Точно удалить?")
+                                    InlineKeyboardButton.builder().text("\uD83D\uDDD1 ДА")
                                             .callbackData(DELETE_PRODUCT.getAction() + productId).build(),
                                     InlineKeyboardButton.builder().text("❌ ОТМЕНА")
                                             .callbackData(TOGGLE_MODE_EDIT.getAction()).build()
@@ -236,7 +275,7 @@ public class CallBackServiceImpl implements CallBackService {
                     var edit = EditMessageText.builder()
                             .chatId(chatId)
                             .messageId(messageId)
-                            .text("\uD83E\uDDE9 *Что делаем с:* " + productName + " ?")
+                            .text("\uD83E\uDDE9 *Точно удалить:* " + productName + " ?")
                             .parseMode("Markdown")
                             .replyMarkup(confirmMarkup)
                             .build();
@@ -377,5 +416,10 @@ public class CallBackServiceImpl implements CallBackService {
 
             return sendService.send(edit);
         }).replaceWithVoid();
+    }
+
+    @Override
+    public Uni<Void> handleEditProductComplete(Update update) {
+        return null;
     }
 }

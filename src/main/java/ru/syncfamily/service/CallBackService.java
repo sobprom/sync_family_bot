@@ -18,6 +18,8 @@ public interface CallBackService {
 
     Uni<Void> handleEditProduct(Update update);
 
+    Uni<Void> handleEditProductComplete(Update update);
+
     Uni<Void> handleConfirmDeleteProduct(Update update);
 
     Uni<Void> handleDeleteProduct(Update update);
