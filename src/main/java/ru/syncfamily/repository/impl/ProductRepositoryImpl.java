@@ -83,4 +83,13 @@ public class ProductRepositoryImpl implements ProductRepository {
                 .and(SHOPPING_LIST.ID.eq(productId))
                 .execute();
     }
+
+    @Override
+    public boolean updateProductName(DbContext ctx, long familyId, long productId, String productName) {
+        return ctx.dsl().update(SHOPPING_LIST)
+                .set(SHOPPING_LIST.PRODUCT_NAME, productName)
+                .where(SHOPPING_LIST.ID.eq(productId))
+                .and(SHOPPING_LIST.FAMILY_ID.eq(familyId))
+                .execute() > 0;
+    }
 }

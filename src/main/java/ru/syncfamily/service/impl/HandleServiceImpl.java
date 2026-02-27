@@ -46,13 +46,25 @@ public class HandleServiceImpl implements HandleService {
         return Uni.createFrom().deferred(() -> {
             long senderChatId = update.getMessage().getChatId();
             String text = update.getMessage().getText();
-            List<String> productsFromChat = listParser.parse(text);
 
             return db.async(ctx -> {
                 var currentUser = familyRepository.getFamilyMemberByChatId(ctx, senderChatId)
                         .orElseThrow();
                 var familyId = currentUser.getFamilyId();
-                productRepository.addProducts(ctx, familyId, productsFromChat);
+
+                // 1. Проверяем, находится ли пользователь в режиме редактирования конкретного продукта
+                if (currentUser.getEditingProductId() != null) {
+                    // Пытаемся обновить продукт. Если он удален (вернул false), просто игнорируем
+                    boolean updated = productRepository.updateProductName(ctx, familyId, currentUser.getEditingProductId(), text);
+                    if (updated) {
+                        // Сбрасываем ID редактирования после успешного обновления
+                        familyRepository.dropEditingProductId(ctx, currentUser);
+                    }
+                } else {
+                    // 2. Если не редактируем — парсим текст как новые продукты
+                    List<String> productsFromChat = listParser.parse(text);
+                    productRepository.addProducts(ctx, familyId, productsFromChat);
+                }
                 List<Product> productsOrdered = productRepository.getAllProductsOrdered(ctx, familyId);
                 List<User> allUsers = familyRepository.getFamilyMembersByFamilyId(ctx, familyId);
                 return Pair.of(allUsers, productsOrdered);
@@ -113,6 +125,8 @@ public class HandleServiceImpl implements HandleService {
             case TOGGLE_MODE_EDIT -> callBackService.handleEditMode(update);
             case CONFIRM_EDIT_PRODUCT -> callBackService.handleConfirmEdit(update);
             case EDIT_PRODUCT -> callBackService.handleEditProduct(update);
+            case EDIT_PRODUCT_COMPLETE -> callBackService.handleEditProductComplete(update);
+            case CONFIRM_DELETE_PRODUCT -> callBackService.handleConfirmDeleteProduct(update);
             case DELETE_PRODUCT -> callBackService.handleDeleteProduct(update);
             case UNKNOWN -> Uni.createFrom().voidItem();
         };

@@ -19,4 +19,8 @@ public interface FamilyRepository {
     User setShoppingEditMode(DbContext ctx, User user);
 
     User dropShoppingEditMode(DbContext ctx, User user);
+
+    void setEditingProductId(DbContext ctx, User user, long productId);
+
+    void dropEditingProductId(DbContext ctx, User user);
 }
