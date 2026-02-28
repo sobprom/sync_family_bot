@@ -1,3 +1,5 @@
+![Build Status](https://github.com)
+
 # 🛒 SyncFamily Shopping List Bot
 
 Реактивный Telegram-бот на стеке **Quarkus + Mutiny**, предназначенный для ведения общего списка покупок внутри семьи с мгновенной синхронизацией интерфейса.
