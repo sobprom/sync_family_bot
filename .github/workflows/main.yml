@@ -1,15 +1,14 @@
-name: Build and Push Bot
+name: Build and Deploy Bot
 
 on:
   push:
     branches: [ "master" ]
 
 jobs:
-  build:
+  build-and-deploy:
     runs-on: ubuntu-latest
 
     services:
-      # Поднимаем базу для jOOQ codegen
       postgres:
         image: postgres:15
         env:
@@ -25,7 +24,8 @@ jobs:
           --health-retries 5
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
@@ -34,7 +34,8 @@ jobs:
           distribution: 'temurin'
           cache: 'maven'
 
-      - name: Build and Generate
+      - name: Build and Generate jOOQ
+        # Важно: URL базы здесь должен совпадать с service выше (localhost:5432)
         run: mvn flyway:migrate jooq-codegen:generate package -DskipTests
 
       - name: Login to GitHub Container Registry
@@ -52,3 +53,12 @@ jobs:
           tags: |
             ghcr.io/${{ github.repository }}:latest
             ghcr.io/${{ github.repository }}:${{ github.sha }}
+
+      - name: Install Railway CLI
+        run: npm install -g @railway/cli
+
+      - name: Deploy to Railway
+        # Используем токен из Secrets вашего репозитория
+        run: railway up --detach
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
