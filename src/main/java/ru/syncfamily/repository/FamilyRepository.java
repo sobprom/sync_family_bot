@@ -6,6 +6,10 @@ import java.util.List;
 import java.util.Optional;
 
 public interface FamilyRepository {
+    User createFamily(DbContext ctx, long chatId, String userName);
+
+    String getFamilyCode(DbContext ctx, User user);
+
     String createFamilyAndGetCode(DbContext ctx, long chatId, String userName);
 
     Optional<User> getFamilyMemberByChatId(DbContext ctx, long chatId);

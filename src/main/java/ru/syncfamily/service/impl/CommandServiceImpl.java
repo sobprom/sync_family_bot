@@ -67,7 +67,9 @@ public class CommandServiceImpl implements CommandService {
         long chatId = update.getMessage().getChatId();
         String userName = update.getMessage().getFrom().getFirstName();
 
-        return db.async(ctx -> familyRepository.createFamilyAndGetCode(ctx, chatId, userName))
+        return db.async(ctx -> familyRepository.getFamilyMemberByChatId(ctx, chatId)
+                        .map(user -> familyRepository.getFamilyCode(ctx, user))
+                        .orElseGet(() -> familyRepository.createFamilyAndGetCode(ctx, chatId, userName)))
                 .map(code -> {
 
                     String inviteLink = "https://t.me/" + BOT_NAME + "?start=" + code;

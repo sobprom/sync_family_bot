@@ -49,7 +49,8 @@ public class HandleServiceImpl implements HandleService {
 
             return db.async(ctx -> {
                 var currentUser = familyRepository.getFamilyMemberByChatId(ctx, senderChatId)
-                        .orElseThrow();
+                        .orElseGet(() -> familyRepository.createFamily(ctx, senderChatId,
+                                update.getMessage().getFrom().getFirstName()));
                 var familyId = currentUser.getFamilyId();
 
                 // 1. Проверяем, находится ли пользователь в режиме редактирования конкретного продукта

@@ -7,8 +7,8 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public enum Command {
 
-    START("/start"),
     START_WITH_INVITE("/start "),
+    START("/start"),
     CREATE_FAMILY("/create_family"),
     UNKNOWN("");
     private final String command;

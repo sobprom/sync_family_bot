@@ -16,6 +16,28 @@ import static ru.syncfamily.jooq.Tables.USERS;
 public class FamilyRepositoryImpl implements FamilyRepository {
 
     @Override
+    public User createFamily(DbContext ctx, long chatId, String userName) {
+
+        String code = UUID.randomUUID().toString();
+        var familyId = ctx.dsl().insertInto(FAMILIES)
+                .set(FAMILIES.INVITE_CODE, code)
+                .returningResult(FAMILIES.ID)
+                .fetchOneInto(Long.class);
+
+        return upsertUserFamily(ctx, chatId, familyId, userName);
+
+    }
+
+    @Override
+    public String getFamilyCode(DbContext ctx, User user) {
+
+        return ctx.dsl().select(FAMILIES.INVITE_CODE)
+                .from(FAMILIES)
+                .where(FAMILIES.ID.eq(user.getFamilyId()))
+                .fetchOneInto(String.class);
+    }
+
+    @Override
     public String createFamilyAndGetCode(DbContext ctx, long chatId, String userName) {
 
         String code = UUID.randomUUID().toString();
@@ -117,13 +139,14 @@ public class FamilyRepositoryImpl implements FamilyRepository {
                 .execute();
     }
 
-    private void upsertUserFamily(DbContext ctx, long chatId, Long familyId, String userName) {
-        ctx.dsl().insertInto(USERS)
+    private User upsertUserFamily(DbContext ctx, long chatId, Long familyId, String userName) {
+        return ctx.dsl().insertInto(USERS)
                 .set(USERS.CHAT_ID, chatId)
                 .set(USERS.FAMILY_ID, familyId)
                 .set(USERS.USERNAME, userName)
                 .onDuplicateKeyUpdate()
                 .set(USERS.FAMILY_ID, familyId)
-                .execute();
+                .returning()
+                .fetchOneInto(User.class);
     }
 }
