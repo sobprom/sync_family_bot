@@ -34,8 +34,8 @@ jobs:
           distribution: 'temurin'
           cache: 'maven'
 
-      - name: Build with Maven
-        run: mvn clean package
+      - name: Build and Generate
+        run: mvn flyway:migrate jooq-codegen:generate package -DskipTests
 
       - name: Login to GitHub Container Registry
         uses: docker/login-action@v3
