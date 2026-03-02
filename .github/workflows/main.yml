@@ -61,7 +61,3 @@ jobs:
         run: railway redeploy
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
-          RAILWAY_PROJECT_ID: "112ff0b7-567a-4a55-a9e8-f0989b2c6b4f"
-      
-
-
