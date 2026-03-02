@@ -58,7 +58,6 @@ jobs:
         run: npm install -g @railway/cli
 
       - name: Deploy to Railway
-        # Используем токен из Secrets вашего репозитория
-        run: railway up --detach
+        run: railway up --ci --detach --project 112ff0b7-567a-4a55-a9e8-f0989b2c6b4f --environment production
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
