@@ -58,7 +58,8 @@ jobs:
         run: npm install -g @railway/cli
 
       - name: Deploy to Railway
-        run: railway redeploy --ci --project 112ff0b7-567a-4a55-a9e8-f0989b2c6b4f --environment production
+        run: railway redeploy --project 112ff0b7-567a-4a55-a9e8-f0989b2c6b4f --environment production
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+
 
