@@ -1,7 +1,5 @@
 FROM eclipse-temurin:17-jre-alpine
 
-VOLUME /tmp
-
 # Рабочая директория для приложения
 WORKDIR /deployments
 
