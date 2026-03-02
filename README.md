@@ -1,4 +1,3 @@
-![Build Status](https://github.com)
 
 # 🛒 SyncFamily Shopping List Bot
 
