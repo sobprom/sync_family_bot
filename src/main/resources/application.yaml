@@ -8,7 +8,7 @@ quarkus:
       artifact-id: telegrambots-longpolling
   # Дополнительный аргумент для GraalVM, чтобы он не удалял неиспользуемые методы
   native:
-    additional-buildargs: "-H:+AllowIncompleteClasspath"
+    additional-build-args: "-H:+AllowIncompleteClasspath"
   datasource:
     db-kind: postgresql
     username: bot
