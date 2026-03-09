@@ -1,4 +1,11 @@
 quarkus:
+  index-dependency:
+    telegram-meta:
+      group-id: org.telegram
+      artifact-id: telegrambots-meta
+      telegram-longpolling:
+        group-id: org.telegram
+        artifact-id: telegrambots-longpolling
   datasource:
     db-kind: postgresql
     username: bot
