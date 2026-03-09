@@ -1,17 +1,15 @@
-FROM eclipse-temurin:17-jre-alpine
+# Этап 1: Сборка нативного образа с Mandrel
+FROM quay.io/quarkus/ubi-quarkus-mandrel-builder-image:jdk-17 AS build
+COPY --chown=quarkus:quarkus . /code/
+USER quarkus
+WORKDIR /code
+# Сборка нативного бинаря (требует много RAM на этапе сборки!)
+RUN ./mvnw package -Pnative -DskipTests
 
-WORKDIR /deployments
-
-# В режиме uber-jar Quarkus создает файл с суффиксом -runner.jar в корне target/
-COPY target/*-runner.jar /deployments/app.jar
-
+# Этап 2: Финальный минимальный образ (UBI Micro)
+FROM quay.io/quarkus/quarkus-micro-image:2.0
+WORKDIR /work/
+COPY --from=build /code/target/*-runner /work/application
+RUN chmod 775 /work/application
 EXPOSE 8080
-
-ENTRYPOINT ["java", \
-    "-Dfile.encoding=UTF-8", \
-    "--add-opens=java.base/java.lang=ALL-UNNAMED", \
-    "--add-opens=java.base/java.util=ALL-UNNAMED", \
-    "--add-opens=java.base/java.nio=ALL-UNNAMED", \
-    "--add-opens=java.base/sun.nio.ch=ALL-UNNAMED", \
-    "-Djava.security.egd=file:/dev/./urandom", \
-    "-jar", "/deployments/app.jar"]
+ENTRYPOINT ["./application", "-Dquarkus.http.host=0.0.0.0"]

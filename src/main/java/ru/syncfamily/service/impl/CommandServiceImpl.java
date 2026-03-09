@@ -18,6 +18,8 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 
 import static ru.syncfamily.config.BotConfig.BOT_NAME;
+import static ru.syncfamily.service.model.CallBack.CONFIRM_LEAVE_FAMILY;
+import static ru.syncfamily.service.model.CallBack.REFRESH;
 
 @Slf4j
 @ApplicationScoped
@@ -31,18 +33,51 @@ public class CommandServiceImpl implements CommandService {
 
     @Override
     public Uni<Void> start(Update update) {
-
         long chatId = update.getMessage().getChatId();
-        return Uni.createFrom().item(() -> {
-            sendService.send(new SendMessage(String.valueOf(chatId),
-                    """
-                            👋 Привет! Я помогу синхронизировать список покупок в вашей семье.
-                            
-                            🔹 Напиши /create_family, чтобы создать новую группу.
-                            """));
-            return null;
-        }).replaceWithVoid();
+
+        // 1. Проверяем, состоит ли пользователь в семье
+        return db.async(ctx -> familyRepository.getFamilyMemberByChatId(ctx, chatId))
+                .onItem().transformToUni(memberOpt -> {
+
+                    // 2. Если пользователь найден (уже в семье)
+                    if (memberOpt.isPresent()) {
+                        InlineKeyboardMarkup markup = InlineKeyboardMarkup.builder()
+                                .keyboardRow(new InlineKeyboardRow(
+                                        InlineKeyboardButton.builder()
+                                                .text("🛒 Перейти к покупкам")
+                                                .callbackData(REFRESH.getAction())
+                                                .build()
+                                ))
+                                .keyboardRow(new InlineKeyboardRow(
+                                        InlineKeyboardButton.builder()
+                                                .text("🚪 Выйти из группы")
+                                                .callbackData(CONFIRM_LEAVE_FAMILY.getAction())
+                                                .build()
+                                ))
+                                .build();
+
+                        sendService.send(SendMessage.builder()
+                                .chatId(chatId)
+                                .text("🏠 Вы находитесь в семейном чате. Что хотите сделать?")
+                                .replyMarkup(markup)
+                                .build());
+
+                        return Uni.createFrom().voidItem();
+                    }
+
+                    // 3. Если пользователя нет в базе (новый пользователь)
+                    sendService.send(new SendMessage(String.valueOf(chatId),
+                            """
+                                    👋 Привет! Я помогу синхронизировать список покупок в вашей семье.
+                                    
+                                    🔹 Напиши /create_family, чтобы создать новую группу.
+                                    🔹 Или перейди по ссылке-приглашению от члена семьи.
+                                    """));
+
+                    return Uni.createFrom().voidItem();
+                });
     }
+
 
     @Override
     public Uni<Void> startWithInvite(Update update) {
