@@ -37,7 +37,11 @@ jobs:
 
       - name: Build and Generate jOOQ
         # Важно: URL базы здесь должен совпадать с service выше (localhost:5432)
-        run: mvn flyway:migrate jooq-codegen:generate package -Pnative -DskipTests
+        run: |
+          mvn flyway:migrate jooq-codegen:generate package \
+            -Pnative \
+            -Dquarkus.native.native-image-xmx=5g \
+            -DskipTests
 
       - name: Login to GitHub Container Registry
         uses: docker/login-action@v3
