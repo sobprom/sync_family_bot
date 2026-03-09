@@ -1,18 +1,16 @@
-# Этап 1: Сборка
 FROM quay.io/quarkus/ubi-quarkus-mandrel-builder-image:jdk-17 AS build
+USER root
+
+RUN microdnf install -y maven && microdnf clean all
+
 COPY --chown=quarkus:quarkus . /code/
 USER quarkus
 WORKDIR /code
 
-RUN java -Dmaven.home=/usr/share/maven \
-    -cp "/usr/share/maven/boot/*" \
-    -Dclassworlds.conf=/etc/m2.conf \
-    org.codehaus.plexus.classworlds.launcher.Launcher \
-    package -Pnative -DskipTests \
+RUN mvn package -Pnative -DskipTests \
     -Dquarkus.native.native-image-xmx=5g \
-    -Dquarkus.native.additional-buildargs="--allow-incomplete-classpath"
+    -Dquarkus.native.additional-buildargs="--allow-incomplete-classpath,--no-fallback"
 
-# Этап 2: Финал
 FROM quay.io/quarkus/quarkus-micro-image:2.0
 WORKDIR /work/
 COPY --from=build /code/target/*-runner /work/application
