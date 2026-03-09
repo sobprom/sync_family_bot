@@ -41,7 +41,7 @@ jobs:
           mvn flyway:migrate jooq-codegen:generate package \
             -Pnative \
             -Dquarkus.native.native-image-xmx=5g \
-            -Dquarkus.native.additional-buildargs=--allow-incomplete-classpath \
+            -Dquarkus.native.additional-buildargs="--allow-incomplete-classpath,--no-fallback,--report-unresolved-elements-at-runtime" \
             -DskipTests
 
       - name: Login to GitHub Container Registry
