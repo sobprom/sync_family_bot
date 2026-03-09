@@ -9,6 +9,7 @@ WORKDIR /code
 
 RUN mvn package -Pnative -DskipTests \
     -Djooq.codegen.skip=true \
+    -Dquarkus.generate-code.skip=true \
     -Dquarkus.native.native-image-xmx=5g \
     -Dquarkus.native.additional-buildargs="--allow-incomplete-classpath,--no-fallback"
 
