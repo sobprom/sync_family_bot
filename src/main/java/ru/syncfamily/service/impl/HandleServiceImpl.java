@@ -126,9 +126,8 @@ public class HandleServiceImpl implements HandleService {
             case TOGGLE_MODE_EDIT -> callBackService.handleEditMode(update);
             case CONFIRM_EDIT_PRODUCT -> callBackService.handleConfirmEdit(update);
             case EDIT_PRODUCT -> callBackService.handleEditProduct(update);
-            case EDIT_PRODUCT_COMPLETE -> callBackService.handleEditProductComplete(update);
-            case CONFIRM_DELETE_PRODUCT -> callBackService.handleConfirmDeleteProduct(update);
             case DELETE_PRODUCT -> callBackService.handleDeleteProduct(update);
+            case CONFIRM_LEAVE_FAMILY -> callBackService.handleConfirmLeaveFamily(update);
             case UNKNOWN -> Uni.createFrom().voidItem();
         };
 
