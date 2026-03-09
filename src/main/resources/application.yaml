@@ -1,11 +1,8 @@
 quarkus:
-  index-dependency:
-    telegram-meta:
-      group-id: org.telegram
-      artifact-id: telegrambots-meta
-      telegram-longpolling:
-        group-id: org.telegram
-        artifact-id: telegrambots-longpolling
+  native:
+    additional-buildargs:
+      - "--initialize-at-run-time=org.telegram.telegrambots"
+      - "--allow-incomplete-classpath"
   datasource:
     db-kind: postgresql
     username: bot
