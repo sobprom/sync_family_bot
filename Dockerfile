@@ -4,7 +4,7 @@ COPY --chown=quarkus:quarkus . /code/
 USER quarkus
 WORKDIR /code
 # Сборка нативного бинаря (требует много RAM на этапе сборки!)
-RUN ./mvnw package -Pnative -DskipTests
+RUN mvnw package -Pnative -DskipTests
 
 # Этап 2: Финальный минимальный образ (UBI Micro)
 FROM quay.io/quarkus/quarkus-micro-image:2.0
