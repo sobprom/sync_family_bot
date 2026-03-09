@@ -1,8 +1,14 @@
 quarkus:
-  native:
-    additional-buildargs:
-      - "--initialize-at-run-time=org.telegram.telegrambots"
-      - "--allow-incomplete-classpath"
+  index-dependency:
+    telegram-meta:
+      group-id: org.telegram
+      artifact-id: telegrambots-meta
+    telegram-longpolling:
+      group-id: org.telegram
+      artifact-id: telegrambots-longpolling
+    # Дополнительный аргумент для GraalVM, чтобы он не удалял неиспользуемые методы
+    native:
+      additional-buildargs: "-H:+AllowIncompleteClasspath"
   datasource:
     db-kind: postgresql
     username: bot
